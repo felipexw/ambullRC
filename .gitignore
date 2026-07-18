@@ -14,3 +14,9 @@ build/
 .externalNativeBuild
 .cxx
 local.properties
+
+# Local editor / ESP-IDF tooling (not part of the app)
+/.idea/
+/.vscode/
+/.clangd
+/eim_config.toml
