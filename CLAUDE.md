@@ -62,12 +62,16 @@ export JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home"
 - **Commit messages** end with the required `Co-Authored-By` trailer. Only commit/push when asked;
   branch off `main` first if needed.
 
-## Current state (2026-07-17)
+## Current state (2026-07-18)
 
-- Feature 001 (direction buttons) and 002 (ESP32 Bluetooth auto-connect) are implemented and committed.
-- ⚠️ **Feature 002 has NOT been tested on real hardware** — the ESP32 firmware isn't deployed yet.
-  Task **T020** in `specs/002-esp32-bluetooth-connection/tasks.md` is still open. When Felipe says the
-  firmware is ready, remind him to run T020 (set `Esp32Config.DEVICE_NAME`, pair, test on a physical
-  phone) before marking it done.
-- Next planned work: actual **command transmission** to the ESP32 over the existing `Esp32Connection`
-  seam.
+- Features 001 (direction buttons), 002 (ESP32 Bluetooth auto-connect), and 003 (send direction
+  commands) are implemented and committed. Automated tests (unit + instrumented) pass for all three.
+- ⚠️ **Neither feature 002 nor 003 has been tested on real hardware** — the ESP32 firmware isn't
+  deployed yet. Two on-device tasks are still open:
+  - **T020** in `specs/002-esp32-bluetooth-connection/tasks.md` (auto-connect smoke check).
+  - **T011** in `specs/003-send-direction-commands/tasks.md` (verify each direction tap arrives as
+    a distinct `UP\n`/`DOWN\n`/`LEFT\n`/`RIGHT\n` line, and that disconnected taps don't crash).
+  When Felipe says the firmware is ready, remind him to run both (set `Esp32Config.DEVICE_NAME`,
+  pair, test on a physical phone) before marking them done.
+- Next planned work: none currently planned — the app now auto-connects and transmits direction
+  commands end-to-end (pending the on-device validation above).

@@ -40,7 +40,7 @@ class ControlScreenTest {
 
     private fun setContentWith(logger: DirectionLogger) {
         composeRule.setContent {
-            ControlScreen(viewModel = ControlViewModel(logger))
+            ControlScreen(viewModel = ControlViewModel(FakeEsp32Connection(), logger))
         }
     }
 
