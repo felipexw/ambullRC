@@ -20,6 +20,12 @@ interface Esp32Connection {
 
     /** Closes the link and releases resources. Idempotent; safe to call in any state. */
     fun disconnect()
+
+    /**
+     * Writes [message] to the live link. Returns true if handed off successfully; false if there
+     * is no live connection or the write failed for any reason. Never throws.
+     */
+    suspend fun send(message: String): Boolean
 }
 
 /** Failure raised by [Esp32Connection.connect]. */

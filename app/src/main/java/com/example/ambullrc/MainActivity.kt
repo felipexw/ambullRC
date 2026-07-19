@@ -19,17 +19,31 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.example.ambullrc.data.BluetoothEsp32Connection
+import com.example.ambullrc.model.Esp32Connection
 import com.example.ambullrc.ui.ConnectionStatusBar
 import com.example.ambullrc.ui.ControlScreen
 import com.example.ambullrc.ui.theme.AmbullRCTheme
 import com.example.ambullrc.viewmodel.ConnectionViewModel
+import com.example.ambullrc.viewmodel.ControlViewModel
 
 class MainActivity : ComponentActivity() {
+
+    // Shared by both ViewModels so sent commands travel over the same socket the connection
+    // lifecycle manages.
+    private val esp32Connection: Esp32Connection by lazy { BluetoothEsp32Connection(applicationContext) }
 
     private val connectionViewModel: ConnectionViewModel by viewModels {
         viewModelFactory {
             initializer {
-                ConnectionViewModel(BluetoothEsp32Connection(applicationContext))
+                ConnectionViewModel(esp32Connection)
+            }
+        }
+    }
+
+    private val controlViewModel: ControlViewModel by viewModels {
+        viewModelFactory {
+            initializer {
+                ControlViewModel(esp32Connection)
             }
         }
     }
@@ -52,7 +66,7 @@ class MainActivity : ComponentActivity() {
                             state = state,
                             onRetry = ::ensureBluetoothPermissionThenConnect
                         )
-                        ControlScreen()
+                        ControlScreen(viewModel = controlViewModel)
                     }
                 }
             }

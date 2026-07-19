@@ -41,8 +41,8 @@ import com.example.ambullrc.viewmodel.ControlViewModel
  */
 @Composable
 fun ControlScreen(
-    modifier: Modifier = Modifier,
-    viewModel: ControlViewModel = remember { ControlViewModel() }
+    viewModel: ControlViewModel,
+    modifier: Modifier = Modifier
 ) {
     Column(
         modifier = modifier.fillMaxSize(),

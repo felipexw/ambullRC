@@ -12,6 +12,7 @@ import com.example.ambullrc.model.Esp32Connection
 import com.example.ambullrc.model.LinkException
 import java.io.IOException
 import java.io.InputStream
+import java.io.OutputStream
 
 /**
  * Real [Esp32Connection] over Bluetooth Classic (RFCOMM / SPP). Connects to the single bonded
@@ -26,6 +27,7 @@ class BluetoothEsp32Connection(context: Context) : Esp32Connection {
     private val appContext = context.applicationContext
     private var socket: BluetoothSocket? = null
     private var inputStream: InputStream? = null
+    private var outputStream: OutputStream? = null
 
     private val adapter: BluetoothAdapter?
         get() = appContext.getSystemService(BluetoothManager::class.java)?.adapter
@@ -43,6 +45,7 @@ class BluetoothEsp32Connection(context: Context) : Esp32Connection {
             newSocket.connect()
             socket = newSocket
             inputStream = newSocket.inputStream
+            outputStream = newSocket.outputStream
         } catch (e: IOException) {
             disconnect()
             throw DeviceUnavailableException()
@@ -71,11 +74,27 @@ class BluetoothEsp32Connection(context: Context) : Esp32Connection {
         } catch (_: IOException) {
         }
         try {
+            outputStream?.close()
+        } catch (_: IOException) {
+        }
+        try {
             socket?.close()
         } catch (_: IOException) {
         }
         inputStream = null
+        outputStream = null
         socket = null
+    }
+
+    override suspend fun send(message: String): Boolean {
+        val stream = outputStream ?: return false
+        return try {
+            stream.write(message.toByteArray(Charsets.UTF_8))
+            stream.flush()
+            true
+        } catch (e: IOException) {
+            false
+        }
     }
 
     @SuppressLint("MissingPermission")
