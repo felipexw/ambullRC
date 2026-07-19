@@ -124,23 +124,89 @@ class ControlViewModelTest {
         assertEquals(sentAtRelease, connection.sentCommands.size)
     }
 
+    // --- Opposite-direction validation: whichever of a pair is pressed first wins; the other's
+    //     press is ignored entirely (not logged, never sent) until the first is released ---
+
     @Test
-    fun pressingAnotherDirectionStopsTheFirstDirectionsSends() = runTest(dispatcher) {
+    fun pressingTheOppositeOfAHeldDirectionIsIgnoredEntirely() = runTest(dispatcher) {
         val connection = FakeEsp32Connection().apply { connect() }
-        val viewModel = newViewModel(connection, RecordingLogger())
+        val logger = RecordingLogger()
+        val viewModel = newViewModel(connection, logger)
 
         viewModel.onDirectionPressed(Direction.UP)
         advanceTimeBy(50)
         runCurrent()
+        // DOWN is UP's opposite and UP is already held: this press must be a total no-op.
         viewModel.onDirectionPressed(Direction.DOWN)
-        advanceTimeBy(50)
+        advanceTimeBy(300)
         runCurrent()
-        viewModel.onDirectionReleased(Direction.DOWN)
+        viewModel.onDirectionReleased(Direction.UP)
         advanceUntilIdle()
 
-        // UP was sent once before DOWN took over; DOWN was sent once before release. UP's repeat
-        // was cancelled the moment DOWN was pressed, so it never sends a second time.
-        assertEquals(listOf("UP\n", "DOWN\n"), connection.sentCommands)
+        assertEquals(listOf(Direction.UP), logger.logged)
+        assertTrue(connection.sentCommands.all { it == "UP\n" })
+        assertTrue(connection.sentCommands.size >= 3)
+    }
+
+    @Test
+    fun releasingOppositeReleaseIsANoOpWhileItWasNeverActuallyHeld() = runTest(dispatcher) {
+        val connection = FakeEsp32Connection().apply { connect() }
+        val viewModel = newViewModel(connection, RecordingLogger())
+
+        viewModel.onDirectionPressed(Direction.LEFT)
+        runCurrent()
+        viewModel.onDirectionPressed(Direction.RIGHT) // ignored: LEFT is already held
+        advanceTimeBy(150)
+        runCurrent()
+        viewModel.onDirectionReleased(Direction.RIGHT) // no-op: RIGHT was never actually held
+        advanceTimeBy(150)
+        runCurrent()
+
+        // LEFT keeps sending throughout, unaffected by RIGHT's rejected press/release.
+        assertTrue(connection.sentCommands.isNotEmpty())
+        assertTrue(connection.sentCommands.all { it == "LEFT\n" })
+
+        viewModel.onDirectionReleased(Direction.LEFT)
+        advanceUntilIdle()
+    }
+
+    @Test
+    fun releasingTheHeldDirectionLetsAFreshOppositePressThroughAfterward() = runTest(dispatcher) {
+        val connection = FakeEsp32Connection().apply { connect() }
+        val viewModel = newViewModel(connection, RecordingLogger())
+
+        viewModel.onDirectionPressed(Direction.LEFT)
+        runCurrent()
+        viewModel.onDirectionPressed(Direction.RIGHT) // ignored while LEFT is held
+        runCurrent()
+        viewModel.onDirectionReleased(Direction.LEFT)
+        advanceUntilIdle()
+        connection.sentCommands.clear()
+
+        // LEFT is released now, so a fresh RIGHT press behaves like a normal, unblocked press.
+        viewModel.onDirectionPressed(Direction.RIGHT)
+        advanceTimeBy(250)
+        runCurrent()
+        viewModel.onDirectionReleased(Direction.RIGHT)
+        advanceUntilIdle()
+
+        assertEquals(List(3) { "RIGHT\n" }, connection.sentCommands)
+    }
+
+    @Test
+    fun forwardOrBackwardCombinedWithLeftOrRightSendsBoth() = runTest(dispatcher) {
+        val connection = FakeEsp32Connection().apply { connect() }
+        val viewModel = newViewModel(connection, RecordingLogger())
+
+        viewModel.onDirectionPressed(Direction.UP)
+        viewModel.onDirectionPressed(Direction.LEFT)
+        runCurrent()
+        viewModel.onDirectionReleased(Direction.UP)
+        viewModel.onDirectionReleased(Direction.LEFT)
+        advanceUntilIdle()
+
+        // UP and LEFT are not opposites, so both are permitted to send simultaneously.
+        assertEquals(setOf("UP\n", "LEFT\n"), connection.sentCommands.toSet())
     }
 
     // --- US2: pressing while not connected is a safe no-op ---
