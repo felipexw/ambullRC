@@ -11,13 +11,15 @@ single purpose is to send commands (signals) to the ESP32.
 
 ## Non-negotiable principles
 
-These come from `.specify/memory/constitution.md` (v1.0.0). Read it before non-trivial changes.
+These come from `.specify/memory/constitution.md` (v2.0.0). Read it before non-trivial changes.
 
 1. **Simplicity & YAGNI (NON-NEGOTIABLE)** — build the simplest thing that works. No speculative
    abstractions, no features that aren't asked for.
 2. **MVVM architecture** — keep the flat package split: `model`, `data`, `viewmodel`, `ui`.
 3. **Single purpose** — the app only transmits commands to the ESP32. Don't add unrelated scope.
-4. **Function over form** — UX/visual polish does not matter. Don't spend effort on styling.
+4. **Delightful UX, simple implementation** — UX/look-and-feel MUST be polished and delightful
+   (clear feedback, smooth motion, coherent theming), but achieve it with idiomatic Compose/
+   Material 3 primitives only — no bespoke animation frameworks or new architectural layers.
 5. **Mandatory test coverage** — every feature ships with **both** unit and integration tests.
 
 ## Architecture conventions
@@ -65,8 +67,17 @@ export JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home"
 ## Current state (2026-07-19)
 
 - Features 001 (direction buttons), 002 (ESP32 Bluetooth auto-connect), 003 (send direction
-  commands), and 004 (in-app log viewer widget) are implemented and committed. Automated tests
-  (unit + instrumented) pass for all four.
+  commands), 004 (in-app log viewer widget), and 005 (home screen UX redesign) are implemented.
+  Automated tests (unit + instrumented) pass for all five.
+- **Feature 005** redesigned all three home-screen areas per the design handoff in
+  `specs/005-home-screen-ux-redesign/`: a color-coded/animated connection status pill (header), a
+  cross-layout D-pad with pressed/disabled visual states (controls), and a tap-or-drag collapsible
+  log sheet with timestamped, category/level-colored entries (log panel). Also introduced a fixed
+  dark theme (`ui/theme/Color.kt`/`Theme.kt` — dynamic Material You color is now off) and gave log
+  entries structure (`viewmodel/LogEntry.kt`: timestamp + category + level) since color-coding
+  needed more than the old plain-string entries. Verified visually on the emulator (T022); **T023
+  (on-device ESP32 validation for this feature) is still open** — needs a physical phone/ESP32 to
+  confirm the redesigned press feedback and connection-color transitions against real hardware.
 - Feature 003's on-device smoke check (**T011**) and feature 004's on-device validation
   (**T013**) are done — direction taps and connection-state changes were confirmed on a physical
   phone against the real ESP32, visible live in the in-app log widget.

@@ -1,28 +1,29 @@
 <!--
 Sync Impact Report
 ==================
-Version change: [TEMPLATE] → 1.0.0 (initial ratification)
-Modified principles: N/A (first fill of template placeholders)
-Added sections:
-  - Core Principles: I. Simplicity & YAGNI, II. MVVM Architecture,
-    III. Single Purpose (Command Transmission Only), IV. Function Over Form,
-    V. Mandatory Test Coverage
-  - Hardware & Communication Scope (Section 2)
-  - Development Workflow & Quality Gates (Section 3)
-  - Governance
+Version change: 1.0.0 → 2.0.0
+Modified principles:
+  - IV. Function Over Form (UX Is Not a Priority) → IV. Delightful UX, Simple
+    Implementation (backward-incompatible redefinition: the app now MUST
+    invest in polished, delightful UX/interactions, reversing the prior
+    "don't spend effort on styling" stance; architectural simplicity remains
+    non-negotiable and now explicitly bounds how that polish is achieved)
+Added sections: none
 Removed sections: none
+Also updated: Principle V rationale and Governance example clause, which
+  cross-referenced the old "UX doesn't matter" stance of Principle IV and
+  would otherwise now read as self-contradictory.
 Templates requiring updates:
   - .specify/templates/plan-template.md ✅ no changes required (Constitution
-    Check gate already generic/data-driven; will pull from this file at plan time)
-  - .specify/templates/spec-template.md ✅ no changes required (structure is
-    project-agnostic; success criteria section already accommodates
-    technology-agnostic, testable outcomes)
-  - .specify/templates/tasks-template.md ✅ no changes required (test-task
-    scaffolding already supports mandatory unit/integration tests; this
-    project marks tests as REQUIRED rather than optional per Principle V)
-  - .claude/skills/speckit-*/SKILL.md ✅ reviewed, no stale agent-specific
-    references requiring correction
-Follow-up TODOs: none — all placeholders resolved from user-supplied input.
+    Check gate is generic/data-driven; will pull updated Principle IV from
+    this file at plan time)
+  - .specify/templates/spec-template.md ✅ no changes required (project-agnostic)
+  - .specify/templates/tasks-template.md ✅ no changes required (Polish phase
+    wording already generic; now also covers UX-delight tasks under Principle IV)
+  - .claude/skills/speckit-*/SKILL.md ✅ reviewed, no stale references found
+  - CLAUDE.md ✅ updated Principle IV bullet to match new wording
+  - AGENTS.md ✅ updated Principle IV bullet to match new wording
+Follow-up TODOs: none.
 -->
 
 # AmbullRC Constitution
@@ -61,13 +62,20 @@ telemetry dashboards, data logging/analytics, multi-device management, user
 accounts, or cloud sync unless the user explicitly requests such a feature.
 When in doubt about whether something is in scope, the default answer is no.
 
-### IV. Function Over Form (UX Is Not a Priority)
+### IV. Delightful UX, Simple Implementation
 
-Visual polish, animations, theming, accessibility beyond defaults, and
-responsive layouts are explicitly out of scope. Screens MUST be functional
-and clear enough to operate the RC vehicle, but engineering effort MUST NOT
-be spent making the UI attractive. If a choice exists between a
-better-looking implementation and a simpler one, choose the simpler one.
+The app's UX and look-and-feel MUST be delightful, not merely functional:
+clear visual feedback for every action (button press/release states,
+connection status, command activity), smooth motion, and a coherent, polished
+theme are expected outcomes, not nice-to-haves. This principle does NOT
+relax Principle I — delight MUST be achieved through simple, idiomatic means:
+prefer Compose/Material 3's built-in theming and animation primitives
+(`MaterialTheme`, `animateXAsState`, `AnimatedVisibility`, standard
+`Modifier` effects) over custom rendering, bespoke animation frameworks,
+third-party design libraries, or new architectural layers built solely to
+support visual effects. If a delightful result requires real architectural
+complexity (new abstractions, extra layers, non-standard dependencies), scale
+back the visual ambition rather than the simplicity of the implementation.
 
 ### V. Mandatory Test Coverage
 
@@ -84,9 +92,10 @@ it is considered done:
 - A feature without passing unit and integration tests MUST NOT be merged
   to `main`, regardless of how small it is.
 
-Tests are not optional scaffolding in this project — they are the
-replacement for manual QA, since UX/manual testing effort is intentionally
-minimized per Principle IV.
+Tests are not optional scaffolding in this project — they are the primary
+replacement for manual QA. Polishing UX per Principle IV does not create an
+exemption: interaction/animation logic that can be expressed as ViewModel
+state still needs unit coverage.
 
 ## Hardware & Communication Scope
 
@@ -122,8 +131,9 @@ minimized per Principle IV.
 ## Governance
 
 This constitution supersedes ad-hoc preferences for this project. Any
-practice that conflicts with a principle here (e.g., adding UX polish,
-adding speculative abstractions, skipping tests) MUST be corrected or the
+practice that conflicts with a principle here (e.g., adding UX polish via a
+new architectural layer instead of idiomatic Compose primitives, adding
+speculative abstractions, skipping tests) MUST be corrected or the
 constitution MUST be amended first — it should not be silently overridden.
 
 **Amendment procedure**: Since this is a solo project, the project owner may
@@ -141,4 +151,4 @@ update the version number below per semantic versioning:
 approach honors Principles I–V above. Any deviation MUST be recorded and
 justified in that feature's plan.md Complexity Tracking table.
 
-**Version**: 1.0.0 | **Ratified**: 2026-07-17 | **Last Amended**: 2026-07-17
+**Version**: 2.0.0 | **Ratified**: 2026-07-17 | **Last Amended**: 2026-07-19

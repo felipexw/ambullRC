@@ -10,6 +10,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.getValue
@@ -19,6 +20,7 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.example.ambullrc.data.BluetoothEsp32Connection
+import com.example.ambullrc.model.ConnectionState
 import com.example.ambullrc.model.Esp32Connection
 import com.example.ambullrc.ui.ConnectionStatusBar
 import com.example.ambullrc.ui.ControlScreen
@@ -68,13 +70,17 @@ class MainActivity : ComponentActivity() {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
                     val state by connectionViewModel.state.collectAsState()
                     val logEntries by debugLog.entries.collectAsState()
-                    Column(modifier = Modifier.padding(innerPadding)) {
+                    Column(modifier = Modifier.padding(innerPadding).fillMaxSize()) {
                         ConnectionStatusBar(
                             state = state,
                             onRetry = ::ensureBluetoothPermissionThenConnect
                         )
-                        ControlScreen(viewModel = controlViewModel, modifier = Modifier.weight(1f))
-                        DebugLogPanel(entries = logEntries)
+                        ControlScreen(
+                            viewModel = controlViewModel,
+                            connected = state == ConnectionState.Connected,
+                            modifier = Modifier.weight(1f).fillMaxWidth()
+                        )
+                        DebugLogPanel(entries = logEntries, modifier = Modifier.fillMaxWidth())
                     }
                 }
             }

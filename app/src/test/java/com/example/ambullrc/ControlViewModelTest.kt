@@ -4,6 +4,9 @@ import com.example.ambullrc.model.Direction
 import com.example.ambullrc.viewmodel.ControlViewModel
 import com.example.ambullrc.viewmodel.DebugLog
 import com.example.ambullrc.viewmodel.DirectionLogger
+import com.example.ambullrc.viewmodel.LogCategory
+import com.example.ambullrc.viewmodel.LogEntry
+import com.example.ambullrc.viewmodel.LogLevel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -185,7 +188,10 @@ class ControlViewModelTest {
         assertEquals(listOf("UP\n", "LEFT\n"), connection.sentCommands)
     }
 
-    // --- Feature 004: send outcomes are recorded in the DebugLog widget ---
+    // --- Feature 004/005: send outcomes are recorded in the DebugLog widget, with a
+    //     category/level attached to each entry (feature 005) ---
+
+    private fun List<LogEntry>.summaries() = map { Triple(it.category, it.level, it.message) }
 
     @Test
     fun pressWhileConnectedAppendsSentEntryToDebugLog() = runTest(dispatcher) {
@@ -198,7 +204,10 @@ class ControlViewModelTest {
         viewModel.onDirectionReleased(Direction.UP)
         advanceUntilIdle()
 
-        assertEquals(listOf("UP -> sent"), debugLog.entries.value)
+        assertEquals(
+            listOf(Triple(LogCategory.SENT, LogLevel.INFO, "UP -> sent")),
+            debugLog.entries.value.summaries()
+        )
     }
 
     @Test
@@ -212,6 +221,9 @@ class ControlViewModelTest {
         viewModel.onDirectionReleased(Direction.DOWN)
         advanceUntilIdle()
 
-        assertEquals(listOf("DOWN -> dropped (not connected)"), debugLog.entries.value)
+        assertEquals(
+            listOf(Triple(LogCategory.SENT, LogLevel.WARN, "DOWN -> dropped (not connected)")),
+            debugLog.entries.value.summaries()
+        )
     }
 }

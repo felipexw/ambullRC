@@ -14,7 +14,8 @@ only job is to send commands to the ESP32.
 1. **Simplicity & YAGNI (non-negotiable)** — simplest thing that works; no speculative abstractions.
 2. **MVVM** — keep the flat packages `model` / `data` / `viewmodel` / `ui`.
 3. **Single purpose** — command transmission to the ESP32 only; don't expand scope.
-4. **Function over form** — UX/styling does not matter; don't invest effort there.
+4. **Delightful UX, simple implementation** — polish UX/look-and-feel (feedback, motion, theming),
+   but only via idiomatic Compose/Material 3 primitives; no bespoke frameworks or new layers.
 5. **Mandatory tests** — every feature needs both unit and integration tests.
 
 ## Architecture
@@ -58,12 +59,19 @@ with an ESP32.
 ## Current state
 
 Features 001 (direction buttons), 002 (ESP32 Bluetooth auto-connect), 003 (send direction
-commands), and 004 (in-app log viewer widget) are implemented, with passing unit + instrumented
-tests. On-device validation is done for direction commands and the log widget (task **T011** in
-`specs/003-send-direction-commands/tasks.md` and task **T013** in
-`specs/004-in-app-log-viewer/tasks.md`). Task **T020** in
+commands), 004 (in-app log viewer widget), and 005 (home screen UX redesign) are implemented,
+with passing unit + instrumented tests. On-device validation is done for direction commands and
+the log widget (task **T011** in `specs/003-send-direction-commands/tasks.md` and task **T013**
+in `specs/004-in-app-log-viewer/tasks.md`). Task **T020** in
 `specs/002-esp32-bluetooth-connection/tasks.md` (dedicated auto-connect smoke check) remains
 open.
+
+**Feature 005** redesigned the header (color-coded/animated connection status pill), the D-pad
+(cross layout, pressed/disabled visual states), and the log panel (tap-or-drag collapsible sheet,
+timestamped/category-colored entries), per `specs/005-home-screen-ux-redesign/`. It also fixed the
+theme to a single dark palette (no more Material You dynamic color) and gave log entries structure
+(`viewmodel/LogEntry.kt`) instead of plain strings. Verified visually on the emulator; task **T023**
+in `specs/005-home-screen-ux-redesign/tasks.md` (on-device ESP32 validation) remains open.
 
 **2026-07-18 hold-to-drive change**: `ControlViewModel.onDirectionTapped` (single send per tap)
 was replaced with `onDirectionPressed`/`onDirectionReleased` — a press resends that direction's

@@ -49,23 +49,23 @@ class ConnectionViewModel(
         connectJob?.cancel()
         connectJob = viewModelScope.launch {
             _state.value = ConnectionState.Connecting
-            debugLog.add("Connecting to ESP32…")
+            debugLog.add(LogCategory.CONNECTION, LogLevel.INFO, "Connecting to ESP32…")
             try {
                 withTimeout(connectTimeoutMillis) {
                     withContext(ioDispatcher) { connection.connect() }
                 }
             } catch (e: TimeoutCancellationException) {
                 _state.value = ConnectionState.Failed(FailureReason.DEVICE_UNAVAILABLE)
-                debugLog.add("Connect failed: ${FailureReason.DEVICE_UNAVAILABLE}")
+                debugLog.add(LogCategory.CONNECTION, LogLevel.ERROR, "Connect failed: ${FailureReason.DEVICE_UNAVAILABLE}")
                 return@launch
             } catch (e: Esp32ConnectionException) {
                 val reason = e.toReason()
                 _state.value = ConnectionState.Failed(reason)
-                debugLog.add("Connect failed: $reason")
+                debugLog.add(LogCategory.CONNECTION, LogLevel.ERROR, "Connect failed: $reason")
                 return@launch
             }
             _state.value = ConnectionState.Connected
-            debugLog.add("Connected")
+            debugLog.add(LogCategory.CONNECTION, LogLevel.INFO, "Connected")
             monitorForDrop()
         }
     }
@@ -77,7 +77,7 @@ class ConnectionViewModel(
     fun onPermissionDenied() {
         connectJob?.cancel()
         _state.value = ConnectionState.Failed(FailureReason.PERMISSION_DENIED)
-        debugLog.add("Connect failed: ${FailureReason.PERMISSION_DENIED}")
+        debugLog.add(LogCategory.APP, LogLevel.ERROR, "Connect failed: ${FailureReason.PERMISSION_DENIED}")
     }
 
     /** After a live link is established, wait for it to drop and reflect the disconnected state. */
@@ -85,12 +85,12 @@ class ConnectionViewModel(
         try {
             withContext(ioDispatcher) { connection.awaitDisconnect() }
             _state.value = ConnectionState.Failed(FailureReason.CONNECTION_LOST)
-            debugLog.add("Connection lost")
+            debugLog.add(LogCategory.CONNECTION, LogLevel.ERROR, "Connection lost")
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
             _state.value = ConnectionState.Failed(FailureReason.CONNECTION_LOST)
-            debugLog.add("Connection lost")
+            debugLog.add(LogCategory.CONNECTION, LogLevel.ERROR, "Connection lost")
         }
     }
 

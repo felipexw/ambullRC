@@ -49,7 +49,11 @@ class ControlViewModel(
         repeatJob = viewModelScope.launch {
             while (isActive) {
                 val sent = withContext(ioDispatcher) { connection.send("${direction.name}\n") }
-                debugLog.add("${direction.name} -> ${if (sent) "sent" else "dropped (not connected)"}")
+                if (sent) {
+                    debugLog.add(LogCategory.SENT, LogLevel.INFO, "${direction.name} -> sent")
+                } else {
+                    debugLog.add(LogCategory.SENT, LogLevel.WARN, "${direction.name} -> dropped (not connected)")
+                }
                 delay(REPEAT_INTERVAL_MS)
             }
         }

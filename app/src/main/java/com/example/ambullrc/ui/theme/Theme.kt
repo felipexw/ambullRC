@@ -1,57 +1,34 @@
 package com.example.ambullrc.ui.theme
 
-import android.app.Activity
-import android.os.Build
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.dynamicDarkColorScheme
-import androidx.compose.material3.dynamicLightColorScheme
-import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.platform.LocalContext
 
-private val DarkColorScheme = darkColorScheme(
-    primary = Purple80,
-    secondary = PurpleGrey80,
-    tertiary = Pink80
-)
-
-private val LightColorScheme = lightColorScheme(
-    primary = Purple40,
-    secondary = PurpleGrey40,
-    tertiary = Pink40
-
-    /* Other default colors to override
-    background = Color(0xFFFFFBFE),
-    surface = Color(0xFFFFFBFE),
-    onPrimary = Color.White,
-    onSecondary = Color.White,
-    onTertiary = Color.White,
-    onBackground = Color(0xFF1C1B1F),
-    onSurface = Color(0xFF1C1B1F),
-    */
+// Fixed dark palette matching the feature 005 design handoff — no light theme, no dynamic
+// (Material You) color: the design has exactly one appearance, and honoring per-device wallpaper
+// color would undermine the redesign's "one consistent visual language" goal (see
+// specs/005-home-screen-ux-redesign/research.md Decision 1).
+private val AmbullRCColorScheme = darkColorScheme(
+    primary = Accent,
+    onPrimary = OnAccent,
+    background = Background,
+    onBackground = OnSurface,
+    surface = SurfaceAppBar,
+    onSurface = OnSurface,
+    surfaceVariant = SurfaceHigh,
+    onSurfaceVariant = OnSurfaceVariant,
+    outline = Outline,
+    outlineVariant = OutlineVariant,
+    error = DisconnectedDot,
+    onError = OnDisconnectedContainer,
+    errorContainer = DisconnectedContainer,
+    onErrorContainer = OnDisconnectedContainer,
 )
 
 @Composable
-fun AmbullRCTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
-    // Dynamic color is available on Android 12+
-    dynamicColor: Boolean = true,
-    content: @Composable () -> Unit
-) {
-    val colorScheme = when {
-        dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
-            val context = LocalContext.current
-            if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
-        }
-
-        darkTheme -> DarkColorScheme
-        else -> LightColorScheme
-    }
-
+fun AmbullRCTheme(content: @Composable () -> Unit) {
     MaterialTheme(
-        colorScheme = colorScheme,
+        colorScheme = AmbullRCColorScheme,
         typography = Typography,
         content = content
     )

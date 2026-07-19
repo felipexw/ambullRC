@@ -4,6 +4,9 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.test.assertHasClickAction
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
@@ -14,15 +17,16 @@ import com.example.ambullrc.viewmodel.ControlViewModel
 import com.example.ambullrc.viewmodel.DirectionLogger
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 
 /**
- * Instrumented UI test for the control screen. Verifies the four directional buttons are present
- * and tappable (US1), and that pressing each button drives the ViewModel's logger with the
- * correct direction and no cross-firing (US2). Presses are driven via raw touch input (down/up)
- * rather than performClick, since the button now streams commands for as long as it is held
- * rather than firing once on a completed click.
+ * Instrumented UI test for the control screen (feature 005 redesign). Verifies the four
+ * directional buttons are present and tappable (US1/legacy), that pressing each button drives the
+ * ViewModel's logger with the correct direction and no cross-firing (US2), and the new
+ * connection-aware behavior: dimmed/disabled controls and hint text when `connected == false`
+ * (spec.md FR-007/FR-008).
  */
 class ControlScreenTest {
 
@@ -39,9 +43,12 @@ class ControlScreenTest {
 
     private val tags = listOf("btn_up", "btn_down", "btn_left", "btn_right")
 
-    private fun setContentWith(logger: DirectionLogger) {
+    private fun setContentWith(logger: DirectionLogger, connected: Boolean = true) {
         composeRule.setContent {
-            ControlScreen(viewModel = ControlViewModel(FakeEsp32Connection(), logger))
+            ControlScreen(
+                viewModel = ControlViewModel(FakeEsp32Connection(), logger),
+                connected = connected
+            )
         }
     }
 
@@ -71,11 +78,11 @@ class ControlScreenTest {
         return pixels
     }
 
-    // --- US1: buttons present and tappable ---
+    // --- buttons present and tappable when connected ---
 
     @Test
     fun allFourButtonsAreDisplayedAndClickable() {
-        setContentWith(RecordingLogger())
+        setContentWith(RecordingLogger(), connected = true)
         for (tag in tags) {
             composeRule.onNodeWithTag(tag).assertIsDisplayed().assertHasClickAction()
         }
@@ -129,7 +136,7 @@ class ControlScreenTest {
         val pressed = node.captureToImage().pixelSignature()
         node.performTouchInput { up() }
 
-        // The highlight background, tint change, and scale must alter the rendered pixels.
+        // The highlight background and icon tint must alter the rendered pixels.
         assertNotEquals(idle, pressed)
     }
 
@@ -145,5 +152,45 @@ class ControlScreenTest {
             listOf(Direction.UP, Direction.UP, Direction.LEFT, Direction.RIGHT),
             logger.logged
         )
+    }
+
+    // --- US2/FR-007: disabled while not connected ---
+
+    @Test
+    fun buttonsAreEnabledWhenConnected() {
+        setContentWith(RecordingLogger(), connected = true)
+        for (tag in tags) {
+            composeRule.onNodeWithTag(tag).assertIsEnabled()
+        }
+    }
+
+    @Test
+    fun buttonsAreDisabledWhenNotConnected() {
+        setContentWith(RecordingLogger(), connected = false)
+        for (tag in tags) {
+            composeRule.onNodeWithTag(tag).assertIsNotEnabled()
+        }
+    }
+
+    @Test
+    fun pressingButtonWhenNotConnectedDoesNotLog() {
+        val logger = RecordingLogger()
+        setContentWith(logger, connected = false)
+        tap("btn_up")
+        assertTrue(logger.logged.isEmpty())
+    }
+
+    // --- US2/FR-008: hint text reflects connection state ---
+
+    @Test
+    fun hintTextPromptsToWaitWhenNotConnected() {
+        setContentWith(RecordingLogger(), connected = false)
+        composeRule.onNodeWithTag("dpad_hint").assertTextEquals("Waiting for connection to enable controls")
+    }
+
+    @Test
+    fun hintTextPromptsToDriveWhenConnected() {
+        setContentWith(RecordingLogger(), connected = true)
+        composeRule.onNodeWithTag("dpad_hint").assertTextEquals("Hold a direction to drive")
     }
 }

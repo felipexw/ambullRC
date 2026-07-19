@@ -7,6 +7,9 @@ import com.example.ambullrc.model.FailureReason
 import com.example.ambullrc.model.LinkException
 import com.example.ambullrc.viewmodel.ConnectionViewModel
 import com.example.ambullrc.viewmodel.DebugLog
+import com.example.ambullrc.viewmodel.LogCategory
+import com.example.ambullrc.viewmodel.LogEntry
+import com.example.ambullrc.viewmodel.LogLevel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -163,7 +166,11 @@ class ConnectionViewModelTest {
         assertEquals(ConnectionState.Failed(FailureReason.CONNECTION_LOST), vm.state.value)
     }
 
-    // --- Feature 004: state transitions are recorded in the DebugLog widget ---
+    // --- Feature 004/005: state transitions are recorded in the DebugLog widget, with a
+    //     category/level attached to each entry (feature 005) ---
+
+    private fun List<LogEntry>.summaries() =
+        map { Triple(it.category, it.level, it.message) }
 
     @Test
     fun connectSuccessAppendsConnectingThenConnectedToDebugLog() = runTest(dispatcher) {
@@ -173,7 +180,13 @@ class ConnectionViewModelTest {
         vm.connect()
         advanceUntilIdle()
 
-        assertEquals(listOf("Connecting to ESP32…", "Connected"), debugLog.entries.value)
+        assertEquals(
+            listOf(
+                Triple(LogCategory.CONNECTION, LogLevel.INFO, "Connecting to ESP32…"),
+                Triple(LogCategory.CONNECTION, LogLevel.INFO, "Connected")
+            ),
+            debugLog.entries.value.summaries()
+        )
     }
 
     @Test
@@ -185,8 +198,11 @@ class ConnectionViewModelTest {
         advanceUntilIdle()
 
         assertEquals(
-            listOf("Connecting to ESP32…", "Connect failed: DEVICE_UNAVAILABLE"),
-            debugLog.entries.value
+            listOf(
+                Triple(LogCategory.CONNECTION, LogLevel.INFO, "Connecting to ESP32…"),
+                Triple(LogCategory.CONNECTION, LogLevel.ERROR, "Connect failed: DEVICE_UNAVAILABLE")
+            ),
+            debugLog.entries.value.summaries()
         )
     }
 
@@ -203,8 +219,25 @@ class ConnectionViewModelTest {
         advanceUntilIdle()
 
         assertEquals(
-            listOf("Connecting to ESP32…", "Connected", "Connection lost"),
-            debugLog.entries.value
+            listOf(
+                Triple(LogCategory.CONNECTION, LogLevel.INFO, "Connecting to ESP32…"),
+                Triple(LogCategory.CONNECTION, LogLevel.INFO, "Connected"),
+                Triple(LogCategory.CONNECTION, LogLevel.ERROR, "Connection lost")
+            ),
+            debugLog.entries.value.summaries()
+        )
+    }
+
+    @Test
+    fun permissionDeniedAppendsAppCategoryErrorEntryToDebugLog() {
+        val debugLog = DebugLog()
+        val vm = newViewModel(FakeEsp32Connection(), debugLog = debugLog)
+
+        vm.onPermissionDenied()
+
+        assertEquals(
+            listOf(Triple(LogCategory.APP, LogLevel.ERROR, "Connect failed: PERMISSION_DENIED")),
+            debugLog.entries.value.summaries()
         )
     }
 }
