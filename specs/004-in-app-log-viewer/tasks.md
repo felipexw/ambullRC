@@ -108,7 +108,7 @@ holds end-to-end.
 
 - [X] T011 [P] Run `./gradlew :app:testDebugUnitTest` and `./gradlew :app:connectedDebugAndroidTest`; confirm all unit and instrumented tests pass (quickstart.md Build & automated tests).
 - [X] T012 Manual validation per quickstart.md (emulator or device, no ESP32 required): confirm the widget is visible below the arrows, tapping a direction adds a "dropped" entry (no Bluetooth radio on emulator), several taps appear in order with the newest auto-scrolled into view, and entries survive a screen rotation.
-- [ ] T013 On-device validation per quickstart.md using a physical phone paired with a real ESP32: confirm connection-state messages appear as the app auto-connects, each direction tap shows `"<DIRECTION> -> sent"`, and moving the ESP32 out of range shows `"Connection lost"` followed by `"dropped (not connected)"` entries with no crash. Requires physical hardware — this doubles as a more convenient alternative to feature 003's T011 (`specs/003-send-direction-commands/tasks.md`).
+- [X] T013 On-device validation per quickstart.md using a physical phone paired with a real ESP32: confirm connection-state messages appear as the app auto-connects, each direction tap shows `"<DIRECTION> -> sent"`, and moving the ESP32 out of range shows `"Connection lost"` followed by `"dropped (not connected)"` entries with no crash. Requires physical hardware — this doubles as a more convenient alternative to feature 003's T011 (`specs/003-send-direction-commands/tasks.md`).
 
 ---
 

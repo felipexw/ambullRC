@@ -62,16 +62,16 @@ export JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home"
 - **Commit messages** end with the required `Co-Authored-By` trailer. Only commit/push when asked;
   branch off `main` first if needed.
 
-## Current state (2026-07-18)
+## Current state (2026-07-19)
 
-- Features 001 (direction buttons), 002 (ESP32 Bluetooth auto-connect), and 003 (send direction
-  commands) are implemented and committed. Automated tests (unit + instrumented) pass for all three.
-- ⚠️ **Neither feature 002 nor 003 has been tested on real hardware** — the ESP32 firmware isn't
-  deployed yet. Two on-device tasks are still open:
-  - **T020** in `specs/002-esp32-bluetooth-connection/tasks.md` (auto-connect smoke check).
-  - **T011** in `specs/003-send-direction-commands/tasks.md` (verify each direction tap arrives as
-    a distinct `UP\n`/`DOWN\n`/`LEFT\n`/`RIGHT\n` line, and that disconnected taps don't crash).
-  When Felipe says the firmware is ready, remind him to run both (set `Esp32Config.DEVICE_NAME`,
-  pair, test on a physical phone) before marking them done.
-- Next planned work: none currently planned — the app now auto-connects and transmits direction
-  commands end-to-end (pending the on-device validation above).
+- Features 001 (direction buttons), 002 (ESP32 Bluetooth auto-connect), 003 (send direction
+  commands), and 004 (in-app log viewer widget) are implemented and committed. Automated tests
+  (unit + instrumented) pass for all four.
+- Feature 003's on-device smoke check (**T011**) and feature 004's on-device validation
+  (**T013**) are done — direction taps and connection-state changes were confirmed on a physical
+  phone against the real ESP32, visible live in the in-app log widget.
+- ⚠️ **Feature 002's own on-device task is still open**: **T020** in
+  `specs/002-esp32-bluetooth-connection/tasks.md` (dedicated auto-connect smoke check — Retry
+  recovery and the permission-denied path specifically). Remind Felipe to run it and mark it
+  `[X]` when convenient.
+- Next planned work: none currently planned.

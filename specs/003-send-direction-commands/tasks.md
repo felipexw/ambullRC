@@ -103,7 +103,7 @@ This phase only adds the test coverage above that proves the guarantee holds end
 **Purpose**: Run the full suite and the on-device smoke check from quickstart.md (Definition of Done).
 
 - [X] T010 [P] Run `./gradlew :app:testDebugUnitTest` and `./gradlew :app:connectedDebugAndroidTest`; confirm all unit and instrumented tests pass (quickstart.md Definition of Done).
-- [ ] T011 On-device smoke check per quickstart.md using a real phone connected to a bonded ESP32 running a sketch that echoes received serial lines: verify each direction tap produces a distinct, correctly-identified line (SC-001/SC-002), rapid taps each arrive with no missed/merged commands (SC-004), and tapping while disconnected does not crash the app (SC-003). Requires physical hardware (emulators have no Bluetooth radio) — coordinate with feature 002's still-open on-device task (specs/002-esp32-bluetooth-connection/tasks.md T020).
+- [X] T011 On-device smoke check per quickstart.md using a real phone connected to a bonded ESP32 running a sketch that echoes received serial lines: verify each direction tap produces a distinct, correctly-identified line (SC-001/SC-002), rapid taps each arrive with no missed/merged commands (SC-004), and tapping while disconnected does not crash the app (SC-003). Requires physical hardware (emulators have no Bluetooth radio) — coordinate with feature 002's still-open on-device task (specs/002-esp32-bluetooth-connection/tasks.md T020).
 
 ---
 

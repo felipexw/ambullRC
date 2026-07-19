@@ -57,9 +57,10 @@ with an ESP32.
 
 ## Current state
 
-Features 001 (direction buttons), 002 (ESP32 Bluetooth auto-connect), and 003 (send direction
-commands) are implemented, with passing unit + instrumented tests. Features 002 and 003 are
-**untested on real hardware** (ESP32 firmware not deployed): task **T020** in
-`specs/002-esp32-bluetooth-connection/tasks.md` and task **T011** in
-`specs/003-send-direction-commands/tasks.md` remain open. No further work is currently planned
-pending that on-device validation.
+Features 001 (direction buttons), 002 (ESP32 Bluetooth auto-connect), 003 (send direction
+commands), and 004 (in-app log viewer widget) are implemented, with passing unit + instrumented
+tests. On-device validation is done for direction commands and the log widget (task **T011** in
+`specs/003-send-direction-commands/tasks.md` and task **T013** in
+`specs/004-in-app-log-viewer/tasks.md`). Task **T020** in
+`specs/002-esp32-bluetooth-connection/tasks.md` (dedicated auto-connect smoke check) remains
+open. No further work is currently planned.
