@@ -63,4 +63,14 @@ tests. On-device validation is done for direction commands and the log widget (t
 `specs/003-send-direction-commands/tasks.md` and task **T013** in
 `specs/004-in-app-log-viewer/tasks.md`). Task **T020** in
 `specs/002-esp32-bluetooth-connection/tasks.md` (dedicated auto-connect smoke check) remains
-open. No further work is currently planned.
+open.
+
+**2026-07-18 hold-to-drive change**: `ControlViewModel.onDirectionTapped` (single send per tap)
+was replaced with `onDirectionPressed`/`onDirectionReleased` — a press resends that direction's
+command every 100ms until released, with no separate "stop" command; the ESP32 is expected to
+stop the motor itself once the stream goes quiet. See the "Post-ship change" note in
+`specs/003-send-direction-commands/tasks.md`. Unit + instrumented tests pass, but this has **not
+yet been validated on real hardware** — confirm the ESP32 firmware actually stops the motor when
+the direction stream stops arriving.
+
+No further work is currently planned.

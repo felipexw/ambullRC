@@ -74,4 +74,12 @@ export JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home"
   `specs/002-esp32-bluetooth-connection/tasks.md` (dedicated auto-connect smoke check — Retry
   recovery and the permission-denied path specifically). Remind Felipe to run it and mark it
   `[X]` when convenient.
+- **2026-07-18 hold-to-drive change**: `ControlViewModel.onDirectionTapped` (single send per tap)
+  was replaced with `onDirectionPressed`/`onDirectionReleased` — a press now resends that
+  direction's command every 100ms until released, with no separate "stop" command; the ESP32 is
+  expected to stop the motor itself once the stream goes quiet. See the "Post-ship change" note in
+  `specs/003-send-direction-commands/tasks.md` for details. Automated tests (unit + instrumented)
+  pass, but this has **not yet been validated on real hardware** — confirm with Felipe that the
+  ESP32 firmware actually has (or gets) a watchdog that stops the motor when the direction stream
+  stops arriving, and that release-while-held actually stops the motor on a physical run.
 - Next planned work: none currently planned.

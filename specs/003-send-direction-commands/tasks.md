@@ -168,3 +168,14 @@ Task: "T003 Extend BluetoothEsp32Connection with outputStream + send() (data/Blu
 - The automated suite runs entirely against `FakeEsp32Connection` and needs no ESP32; only T011
   needs real hardware.
 - Commit after each task or logical group.
+
+## Post-ship change (2026-07-18): hold-to-drive, not tap-to-pulse
+
+Single-send-per-tap left the motor running after release (nothing ever told it to stop). Reworked
+per updated spec.md/contracts/command-contract.md: `onDirectionTapped` → `onDirectionPressed` /
+`onDirectionReleased`; a press starts a 100ms-interval repeating send of that direction, released
+by cancelling on release. No new "stop" command was added — the ESP32 is expected to stop the
+motor itself once the stream goes quiet (release, backgrounding, or connection loss all cause
+this). `ControlScreen`'s `DirectionButton` now drives this off `interactionSource`'s pressed state
+(`LaunchedEffect(isPressed)`) instead of `IconButton.onClick`. `ControlViewModelTest` and
+`ControlScreenTest` were rewritten for the new API; all unit and instrumented tests pass.

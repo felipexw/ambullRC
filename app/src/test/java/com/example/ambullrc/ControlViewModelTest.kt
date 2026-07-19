@@ -7,8 +7,10 @@ import com.example.ambullrc.viewmodel.DirectionLogger
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
@@ -19,9 +21,10 @@ import org.junit.Test
 
 /**
  * JVM unit tests for [ControlViewModel]. Uses a fake [DirectionLogger] and [FakeEsp32Connection]
- * to assert that each tap logs the matching direction (feature 001 regression) and sends the
- * matching command (FR-001..004), and that taps made while disconnected are silently dropped
- * (FR-005/FR-006).
+ * to assert that pressing a direction logs it once (feature 001 regression), that it keeps
+ * resending the command every 100ms while held (so the ESP32's own watchdog never sees the stream
+ * go quiet), and that it stops the moment the button is released — there is no separate "stop"
+ * command; not sending is what stops the motor.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class ControlViewModelTest {
@@ -52,16 +55,18 @@ class ControlViewModelTest {
         debugLog: DebugLog = DebugLog()
     ) = ControlViewModel(connection, logger, debugLog, ioDispatcher = dispatcher)
 
-    // --- US1: tapping while connected sends the matching command ---
+    // --- US1: pressing while connected sends the matching command, repeatedly, until released ---
 
     @Test
-    fun eachDirectionTapSendsThatSameDirectionsCommand() = runTest(dispatcher) {
+    fun eachDirectionPressSendsThatSameDirectionsCommand() = runTest(dispatcher) {
         for (direction in Direction.entries) {
             val connection = FakeEsp32Connection().apply { connect() }
             val logger = RecordingLogger()
             val viewModel = newViewModel(connection, logger)
 
-            viewModel.onDirectionTapped(direction)
+            viewModel.onDirectionPressed(direction)
+            runCurrent()
+            viewModel.onDirectionReleased(direction)
             advanceUntilIdle()
 
             assertEquals(listOf(direction), logger.logged)
@@ -70,12 +75,14 @@ class ControlViewModelTest {
     }
 
     @Test
-    fun singleTapSendsExactlyOneMessage() = runTest(dispatcher) {
+    fun pressThenImmediateReleaseSendsExactlyOneMessage() = runTest(dispatcher) {
         val connection = FakeEsp32Connection().apply { connect() }
         val logger = RecordingLogger()
         val viewModel = newViewModel(connection, logger)
 
-        viewModel.onDirectionTapped(Direction.LEFT)
+        viewModel.onDirectionPressed(Direction.LEFT)
+        runCurrent()
+        viewModel.onDirectionReleased(Direction.LEFT)
         advanceUntilIdle()
 
         assertEquals(1, connection.sentCommands.size)
@@ -83,49 +90,67 @@ class ControlViewModelTest {
     }
 
     @Test
-    fun repeatedTapsEachSendAMessageInOrder() = runTest(dispatcher) {
+    fun holdingAButtonResendsTheCommandEveryHundredMillis() = runTest(dispatcher) {
         val connection = FakeEsp32Connection().apply { connect() }
-        val logger = RecordingLogger()
-        val viewModel = newViewModel(connection, logger)
+        val viewModel = newViewModel(connection, RecordingLogger())
 
-        viewModel.onDirectionTapped(Direction.UP)
-        viewModel.onDirectionTapped(Direction.UP)
-        viewModel.onDirectionTapped(Direction.DOWN)
-        viewModel.onDirectionTapped(Direction.UP)
+        viewModel.onDirectionPressed(Direction.UP)
+        advanceTimeBy(350)
+        runCurrent()
+        viewModel.onDirectionReleased(Direction.UP)
         advanceUntilIdle()
 
-        assertEquals(
-            listOf(Direction.UP, Direction.UP, Direction.DOWN, Direction.UP),
-            logger.logged
-        )
-        assertEquals(
-            listOf("UP\n", "UP\n", "DOWN\n", "UP\n"),
-            connection.sentCommands
-        )
+        // Sent at t=0, 100, 200, 300 while held for 350ms.
+        assertEquals(List(4) { "UP\n" }, connection.sentCommands)
     }
 
     @Test
-    fun tappingOneDirectionNeverSendsAnother() = runTest(dispatcher) {
+    fun releasingStopsFurtherSends() = runTest(dispatcher) {
         val connection = FakeEsp32Connection().apply { connect() }
-        val logger = RecordingLogger()
-        val viewModel = newViewModel(connection, logger)
+        val viewModel = newViewModel(connection, RecordingLogger())
 
-        viewModel.onDirectionTapped(Direction.RIGHT)
+        viewModel.onDirectionPressed(Direction.UP)
+        advanceTimeBy(250)
+        runCurrent()
+        viewModel.onDirectionReleased(Direction.UP)
+        val sentAtRelease = connection.sentCommands.size
+
+        advanceTimeBy(500)
         advanceUntilIdle()
 
-        assertEquals(listOf("RIGHT\n"), connection.sentCommands)
-        assertTrue(connection.sentCommands.none { it.startsWith("LEFT") })
+        assertEquals(sentAtRelease, connection.sentCommands.size)
     }
 
-    // --- US2: tapping while not connected is a safe no-op ---
+    @Test
+    fun pressingAnotherDirectionStopsTheFirstDirectionsSends() = runTest(dispatcher) {
+        val connection = FakeEsp32Connection().apply { connect() }
+        val viewModel = newViewModel(connection, RecordingLogger())
+
+        viewModel.onDirectionPressed(Direction.UP)
+        advanceTimeBy(50)
+        runCurrent()
+        viewModel.onDirectionPressed(Direction.DOWN)
+        advanceTimeBy(50)
+        runCurrent()
+        viewModel.onDirectionReleased(Direction.DOWN)
+        advanceUntilIdle()
+
+        // UP was sent once before DOWN took over; DOWN was sent once before release. UP's repeat
+        // was cancelled the moment DOWN was pressed, so it never sends a second time.
+        assertEquals(listOf("UP\n", "DOWN\n"), connection.sentCommands)
+    }
+
+    // --- US2: pressing while not connected is a safe no-op ---
 
     @Test
-    fun tapWhileNotConnectedSendsNothingAndDoesNotThrow() = runTest(dispatcher) {
+    fun pressWhileNotConnectedSendsNothingAndDoesNotThrow() = runTest(dispatcher) {
         val connection = FakeEsp32Connection() // connect() never called
         val logger = RecordingLogger()
         val viewModel = newViewModel(connection, logger)
 
-        viewModel.onDirectionTapped(Direction.UP)
+        viewModel.onDirectionPressed(Direction.UP)
+        runCurrent()
+        viewModel.onDirectionReleased(Direction.UP)
         advanceUntilIdle()
 
         assertTrue(connection.sentCommands.isEmpty())
@@ -134,47 +159,57 @@ class ControlViewModelTest {
     }
 
     @Test
-    fun tapWhileDisconnectedIsNotReplayedAfterReconnect() = runTest(dispatcher) {
+    fun pressWhileDisconnectedIsNotReplayedAfterReconnect() = runTest(dispatcher) {
         val connection = FakeEsp32Connection().apply { connect() }
         val logger = RecordingLogger()
         val viewModel = newViewModel(connection, logger)
 
-        viewModel.onDirectionTapped(Direction.UP)
+        viewModel.onDirectionPressed(Direction.UP)
+        runCurrent()
+        viewModel.onDirectionReleased(Direction.UP)
         advanceUntilIdle()
 
         connection.disconnect()
-        viewModel.onDirectionTapped(Direction.DOWN)
+        viewModel.onDirectionPressed(Direction.DOWN)
+        runCurrent()
+        viewModel.onDirectionReleased(Direction.DOWN)
         advanceUntilIdle()
 
         connection.connect()
-        viewModel.onDirectionTapped(Direction.LEFT)
+        viewModel.onDirectionPressed(Direction.LEFT)
+        runCurrent()
+        viewModel.onDirectionReleased(Direction.LEFT)
         advanceUntilIdle()
 
-        // The DOWN tap made while disconnected is never sent, before or after reconnecting.
+        // The DOWN press made while disconnected is never sent, before or after reconnecting.
         assertEquals(listOf("UP\n", "LEFT\n"), connection.sentCommands)
     }
 
-    // --- Feature 004: tap outcomes are recorded in the DebugLog widget ---
+    // --- Feature 004: send outcomes are recorded in the DebugLog widget ---
 
     @Test
-    fun tapWhileConnectedAppendsSentEntryToDebugLog() = runTest(dispatcher) {
+    fun pressWhileConnectedAppendsSentEntryToDebugLog() = runTest(dispatcher) {
         val connection = FakeEsp32Connection().apply { connect() }
         val debugLog = DebugLog()
         val viewModel = newViewModel(connection, RecordingLogger(), debugLog)
 
-        viewModel.onDirectionTapped(Direction.UP)
+        viewModel.onDirectionPressed(Direction.UP)
+        runCurrent()
+        viewModel.onDirectionReleased(Direction.UP)
         advanceUntilIdle()
 
         assertEquals(listOf("UP -> sent"), debugLog.entries.value)
     }
 
     @Test
-    fun tapWhileDisconnectedAppendsDroppedEntryToDebugLog() = runTest(dispatcher) {
+    fun pressWhileDisconnectedAppendsDroppedEntryToDebugLog() = runTest(dispatcher) {
         val connection = FakeEsp32Connection() // never connected
         val debugLog = DebugLog()
         val viewModel = newViewModel(connection, RecordingLogger(), debugLog)
 
-        viewModel.onDirectionTapped(Direction.DOWN)
+        viewModel.onDirectionPressed(Direction.DOWN)
+        runCurrent()
+        viewModel.onDirectionReleased(Direction.DOWN)
         advanceUntilIdle()
 
         assertEquals(listOf("DOWN -> dropped (not connected)"), debugLog.entries.value)

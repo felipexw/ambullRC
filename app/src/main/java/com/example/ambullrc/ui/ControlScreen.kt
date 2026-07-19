@@ -21,6 +21,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -36,8 +37,8 @@ import com.example.ambullrc.viewmodel.ControlViewModel
 
 /**
  * The control screen: four directional buttons (up / down / left / right), each showing the
- * matching arrow icon. This View holds no logic — every tap is forwarded to [viewModel]. Test
- * tags and content descriptions match the feature's UI contract.
+ * matching arrow icon. This View holds no logic — every press/release is forwarded to
+ * [viewModel]. Test tags and content descriptions match the feature's UI contract.
  */
 @Composable
 fun ControlScreen(
@@ -54,7 +55,8 @@ fun ControlScreen(
             icon = Icons.Filled.KeyboardArrowUp,
             contentDescription = "Up",
             testTag = "btn_up",
-            onTapped = viewModel::onDirectionTapped
+            onPressed = viewModel::onDirectionPressed,
+            onReleased = viewModel::onDirectionReleased
         )
         Row(horizontalArrangement = Arrangement.Center) {
             DirectionButton(
@@ -62,14 +64,16 @@ fun ControlScreen(
                 icon = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
                 contentDescription = "Left",
                 testTag = "btn_left",
-                onTapped = viewModel::onDirectionTapped
+                onPressed = viewModel::onDirectionPressed,
+                onReleased = viewModel::onDirectionReleased
             )
             DirectionButton(
                 direction = Direction.RIGHT,
                 icon = Icons.AutoMirrored.Filled.KeyboardArrowRight,
                 contentDescription = "Right",
                 testTag = "btn_right",
-                onTapped = viewModel::onDirectionTapped
+                onPressed = viewModel::onDirectionPressed,
+                onReleased = viewModel::onDirectionReleased
             )
         }
         DirectionButton(
@@ -77,7 +81,8 @@ fun ControlScreen(
             icon = Icons.Filled.KeyboardArrowDown,
             contentDescription = "Down",
             testTag = "btn_down",
-            onTapped = viewModel::onDirectionTapped
+            onPressed = viewModel::onDirectionPressed,
+            onReleased = viewModel::onDirectionReleased
         )
     }
 }
@@ -88,13 +93,20 @@ private fun DirectionButton(
     icon: ImageVector,
     contentDescription: String,
     testTag: String,
-    onTapped: (Direction) -> Unit
+    onPressed: (Direction) -> Unit,
+    onReleased: (Direction) -> Unit
 ) {
-    // Track the button's interaction states so we can react to pointer hover and to press/tap.
+    // Track the button's interaction states so we can react to pointer hover and to press/release.
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
     val isHovered by interactionSource.collectIsHoveredAsState()
     val active = isPressed || isHovered
+
+    // The button commands the vehicle for as long as it is held down, not just on a completed
+    // click: the ESP32 stops the motor once this stream of presses stops arriving.
+    LaunchedEffect(isPressed) {
+        if (isPressed) onPressed(direction) else onReleased(direction)
+    }
 
     // Animate the feedback so hover, press, and release transition smoothly.
     val scale by animateFloatAsState(
@@ -115,7 +127,7 @@ private fun DirectionButton(
     )
 
     IconButton(
-        onClick = { onTapped(direction) },
+        onClick = {},
         interactionSource = interactionSource,
         modifier = Modifier
             .size(120.dp)

@@ -7,7 +7,6 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
-import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTouchInput
 import com.example.ambullrc.model.Direction
 import com.example.ambullrc.ui.ControlScreen
@@ -20,8 +19,10 @@ import org.junit.Test
 
 /**
  * Instrumented UI test for the control screen. Verifies the four directional buttons are present
- * and tappable (US1), and that clicking each button drives the ViewModel's logger with the correct
- * direction and no cross-firing (US2).
+ * and tappable (US1), and that pressing each button drives the ViewModel's logger with the
+ * correct direction and no cross-firing (US2). Presses are driven via raw touch input (down/up)
+ * rather than performClick, since the button now streams commands for as long as it is held
+ * rather than firing once on a completed click.
  */
 class ControlScreenTest {
 
@@ -42,6 +43,15 @@ class ControlScreenTest {
         composeRule.setContent {
             ControlScreen(viewModel = ControlViewModel(FakeEsp32Connection(), logger))
         }
+    }
+
+    /** Presses and immediately releases the tagged button, as a single logical tap. */
+    private fun tap(tag: String) {
+        val node = composeRule.onNodeWithTag(tag)
+        node.performTouchInput { down(center) }
+        composeRule.waitForIdle()
+        node.performTouchInput { up() }
+        composeRule.waitForIdle()
     }
 
     /** Coarse fingerprint of a rendered node: a sampled grid of pixel colors. */
@@ -71,13 +81,13 @@ class ControlScreenTest {
         }
     }
 
-    // --- US2: each click logs the matching direction, no cross-firing ---
+    // --- US2: each press logs the matching direction, no cross-firing ---
 
     @Test
     fun tappingUpLogsOnlyUp() {
         val logger = RecordingLogger()
         setContentWith(logger)
-        composeRule.onNodeWithTag("btn_up").performClick()
+        tap("btn_up")
         assertEquals(listOf(Direction.UP), logger.logged)
     }
 
@@ -85,7 +95,7 @@ class ControlScreenTest {
     fun tappingDownLogsOnlyDown() {
         val logger = RecordingLogger()
         setContentWith(logger)
-        composeRule.onNodeWithTag("btn_down").performClick()
+        tap("btn_down")
         assertEquals(listOf(Direction.DOWN), logger.logged)
     }
 
@@ -93,7 +103,7 @@ class ControlScreenTest {
     fun tappingLeftLogsOnlyLeft() {
         val logger = RecordingLogger()
         setContentWith(logger)
-        composeRule.onNodeWithTag("btn_left").performClick()
+        tap("btn_left")
         assertEquals(listOf(Direction.LEFT), logger.logged)
     }
 
@@ -101,7 +111,7 @@ class ControlScreenTest {
     fun tappingRightLogsOnlyRight() {
         val logger = RecordingLogger()
         setContentWith(logger)
-        composeRule.onNodeWithTag("btn_right").performClick()
+        tap("btn_right")
         assertEquals(listOf(Direction.RIGHT), logger.logged)
     }
 
@@ -127,10 +137,10 @@ class ControlScreenTest {
     fun tappingSequenceRecordsEveryTapInOrder() {
         val logger = RecordingLogger()
         setContentWith(logger)
-        composeRule.onNodeWithTag("btn_up").performClick()
-        composeRule.onNodeWithTag("btn_up").performClick()
-        composeRule.onNodeWithTag("btn_left").performClick()
-        composeRule.onNodeWithTag("btn_right").performClick()
+        tap("btn_up")
+        tap("btn_up")
+        tap("btn_left")
+        tap("btn_right")
         assertEquals(
             listOf(Direction.UP, Direction.UP, Direction.LEFT, Direction.RIGHT),
             logger.logged
