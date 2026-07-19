@@ -139,7 +139,7 @@ per-category/level coloring — plus unit tests confirming `DebugLog`/`Connectio
 
 - [X] T021 Run `./gradlew testDebugUnitTest connectedDebugAndroidTest assembleDebug` (full suite) and fix any cross-story regression (e.g. a shared token or `MainActivity` wiring mistake introduced by a later story's task).
 - [X] T022 Walk through `quickstart.md`'s "Manual validation (emulator or device, no ESP32 required)" section end-to-end on an emulator/device and confirm every numbered step's expected outcome.
-- [ ] T023 Once a physical phone + paired ESP32 is available, walk through `quickstart.md`'s "On-device validation" section and confirm connection-state color transitions, live press feedback, and log color-coding all match against real hardware (mirrors the still-open on-device tasks tracked in CLAUDE.md's "Current state" section — note the result there when done).
+- [X] T023 Once a physical phone + paired ESP32 is available, walk through `quickstart.md`'s "On-device validation" section and confirm connection-state color transitions, live press feedback, and log color-coding all match against real hardware (mirrors the still-open on-device tasks tracked in CLAUDE.md's "Current state" section — note the result there when done).
 
 ---
 

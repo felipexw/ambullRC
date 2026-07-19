@@ -67,17 +67,41 @@ export JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home"
 ## Current state (2026-07-19)
 
 - Features 001 (direction buttons), 002 (ESP32 Bluetooth auto-connect), 003 (send direction
-  commands), 004 (in-app log viewer widget), and 005 (home screen UX redesign) are implemented.
-  Automated tests (unit + instrumented) pass for all five.
+  commands), 004 (in-app log viewer widget), 005 (home screen UX redesign), and 006 (home UI &
+  branding refresh) are implemented. Automated tests (unit + instrumented) pass for all six.
+- **Feature 006** (`specs/006-home-ui-branding-refresh/`) made four presentation-only changes: the
+  D-pad's fixed 76dp cells (`ui/ControlScreen.kt`) now use `BoxWithConstraints`/weighted rows-cells
+  to fill the whole control region; the connected-state "Hold a direction to drive" hint was
+  removed (disconnected hint unchanged); a small brand icon was added to the header's leading edge
+  (`ui/ConnectionStatusBar.kt`, reusing `R.drawable.ic_launcher_foreground`); and the default
+  Android-robot launcher icon was replaced with the supplied orange car/gamepad mark (raster
+  `res/drawable-nodpi/ic_launcher_*.png` layers) with a matching cold-launch splash screen wired up
+  via native Android 12+ theme attributes (`android:windowSplashScreenBackground`/
+  `windowSplashScreenAnimatedIcon` in `res/values/themes.xml`) — no new dependency. Verified
+  visually on the emulator (T012) and, on 2026-07-19, on a physical phone connected live to the
+  ESP32 (**T013**, now done): enlarged D-pad, header icon, hint removal, and the "Connected" pill
+  all confirmed, with real TX log entries showing directional commands actually being sent.
+- **2026-07-19 post-ship tweaks** (small follow-up polish on feature 006, done ad hoc rather than
+  through a new spec): the header brand icon (`ui/ConnectionStatusBar.kt`) grew from 28dp to 40dp;
+  the cold-launch splash screen (`MainActivity.kt`) now holds an extra ~1s via
+  `splashScreen.setOnExitAnimationListener` (the platform `android.window.SplashScreen` API has no
+  compat-library-style `setKeepOnScreenCondition`, so the exit-animation listener delays
+  `SplashScreenView.remove()` instead); the decorative center-hub circle in the D-pad
+  (`ui/ControlScreen.kt`'s `CenterHub`) was deleted outright (that middle cross cell is now blank);
+  and the four directional buttons are now perfect squares — `ControlScreen` wraps the grid in a
+  single `BoxWithConstraints`, computes `cellSize = (minOf(maxWidth, maxHeight) - gaps) / 3`, and
+  centers the resulting square 3x3 grid, replacing the old per-row/per-cell `weight(1f)` approach
+  that could yield rectangular (non-square) cells on non-square available regions. Verified on the
+  physical phone alongside the T013 check above; unit + all 41 instrumented tests still pass.
 - **Feature 005** redesigned all three home-screen areas per the design handoff in
   `specs/005-home-screen-ux-redesign/`: a color-coded/animated connection status pill (header), a
   cross-layout D-pad with pressed/disabled visual states (controls), and a tap-or-drag collapsible
   log sheet with timestamped, category/level-colored entries (log panel). Also introduced a fixed
   dark theme (`ui/theme/Color.kt`/`Theme.kt` — dynamic Material You color is now off) and gave log
   entries structure (`viewmodel/LogEntry.kt`: timestamp + category + level) since color-coding
-  needed more than the old plain-string entries. Verified visually on the emulator (T022); **T023
-  (on-device ESP32 validation for this feature) is still open** — needs a physical phone/ESP32 to
-  confirm the redesigned press feedback and connection-color transitions against real hardware.
+  needed more than the old plain-string entries. Verified visually on the emulator (T022) and, on
+  2026-07-19, on a physical phone against the real ESP32 (**T023**, now done): the "Connected" pill
+  color transition and press-driven directional commands were confirmed live (see T013 note above).
 - Feature 003's on-device smoke check (**T011**) and feature 004's on-device validation
   (**T013**) are done — direction taps and connection-state changes were confirmed on a physical
   phone against the real ESP32, visible live in the in-app log widget.

@@ -64,6 +64,11 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // Native splash screen (see themes.xml) would otherwise vanish the instant its exit
+        // animation starts; hold the icon on screen a beat longer so the brand mark registers.
+        splashScreen.setOnExitAnimationListener { splashScreenView ->
+            splashScreenView.postDelayed({ splashScreenView.remove() }, 1000)
+        }
         enableEdgeToEdge()
         setContent {
             AmbullRCTheme {

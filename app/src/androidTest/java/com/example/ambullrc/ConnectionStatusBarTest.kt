@@ -70,6 +70,37 @@ class ConnectionStatusBarTest {
         composeRule.onNodeWithTag("device_name").assertTextEquals("No device")
     }
 
+    // --- FR-005: leading brand icon present in every connection state ---
+
+    @Test
+    fun headerIconShownWhenIdle() {
+        setState(ConnectionState.Idle)
+        composeRule.onNodeWithTag("header_icon").assertIsDisplayed()
+    }
+
+    @Test
+    fun headerIconShownWhenConnecting() {
+        setState(ConnectionState.Connecting)
+        composeRule.onNodeWithTag("header_icon").assertIsDisplayed()
+    }
+
+    @Test
+    fun headerIconShownWhenConnected() {
+        setState(ConnectionState.Connected)
+        composeRule.onNodeWithTag("header_icon").assertIsDisplayed()
+        // The status pill/device name must still be present alongside the new icon.
+        composeRule.onNodeWithTag("device_name").assertIsDisplayed()
+        composeRule.onNodeWithTag("status_text").assertIsDisplayed()
+    }
+
+    @Test
+    fun headerIconShownWhenFailed() {
+        setState(ConnectionState.Failed(FailureReason.DEVICE_UNAVAILABLE))
+        composeRule.onNodeWithTag("header_icon").assertIsDisplayed()
+        // Retry must still be present alongside the new icon.
+        composeRule.onNodeWithTag("btn_retry").assertIsDisplayed()
+    }
+
     // --- Retry button visibility (Idle/Failed = disconnected bucket) ---
 
     @Test

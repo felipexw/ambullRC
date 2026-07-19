@@ -7,10 +7,15 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertTextEquals
+import androidx.compose.ui.test.assertWidthIsAtLeast
+import androidx.compose.ui.test.assertHeightIsAtLeast
 import androidx.compose.ui.test.captureToImage
+import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.unit.dp
 import com.example.ambullrc.model.Direction
 import com.example.ambullrc.ui.ControlScreen
 import com.example.ambullrc.viewmodel.ControlViewModel
@@ -180,7 +185,7 @@ class ControlScreenTest {
         assertTrue(logger.logged.isEmpty())
     }
 
-    // --- US2/FR-008: hint text reflects connection state ---
+    // --- FR-004: connected-state hint text is removed; disconnected hint is unchanged ---
 
     @Test
     fun hintTextPromptsToWaitWhenNotConnected() {
@@ -189,8 +194,34 @@ class ControlScreenTest {
     }
 
     @Test
-    fun hintTextPromptsToDriveWhenConnected() {
+    fun noHintTextWhenConnected() {
         setContentWith(RecordingLogger(), connected = true)
-        composeRule.onNodeWithTag("dpad_hint").assertTextEquals("Hold a direction to drive")
+        composeRule.onNodeWithTag("dpad_hint").assertDoesNotExist()
+        composeRule.onNodeWithText("Hold a direction to drive").assertDoesNotExist()
+    }
+
+    // --- FR-001/FR-002/SC-001: buttons fill the available space, staying within ControlScreen ---
+
+    @Test
+    fun directionButtonsAreLargerThanOldFixedCellSize() {
+        setContentWith(RecordingLogger(), connected = true)
+        // The old fixed cell was 76dp; on a full-screen host these should comfortably exceed it.
+        for (tag in tags) {
+            composeRule.onNodeWithTag(tag).assertWidthIsAtLeast(90.dp)
+            composeRule.onNodeWithTag(tag).assertHeightIsAtLeast(90.dp)
+        }
+    }
+
+    @Test
+    fun directionButtonsStayWithinControlScreenBounds() {
+        setContentWith(RecordingLogger(), connected = true)
+        val screenBounds = composeRule.onNodeWithTag("control_screen").getUnclippedBoundsInRoot()
+        for (tag in tags) {
+            val buttonBounds = composeRule.onNodeWithTag(tag).getUnclippedBoundsInRoot()
+            assertTrue(buttonBounds.left >= screenBounds.left)
+            assertTrue(buttonBounds.top >= screenBounds.top)
+            assertTrue(buttonBounds.right <= screenBounds.right)
+            assertTrue(buttonBounds.bottom <= screenBounds.bottom)
+        }
     }
 }

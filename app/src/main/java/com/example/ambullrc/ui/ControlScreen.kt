@@ -7,11 +7,12 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
@@ -38,18 +39,17 @@ import com.example.ambullrc.ui.theme.Accent
 import com.example.ambullrc.ui.theme.OnAccent
 import com.example.ambullrc.ui.theme.OnSurfaceVariant
 import com.example.ambullrc.ui.theme.Outline
-import com.example.ambullrc.ui.theme.OutlineVariant
 import com.example.ambullrc.ui.theme.SurfaceHigh
-import com.example.ambullrc.ui.theme.SurfaceSheet
 import com.example.ambullrc.viewmodel.ControlViewModel
 
-private val CellSize = 76.dp
 private val GridGap = 10.dp
 
 /**
  * The D-pad control area: four directional buttons in a cross layout around a decorative center
- * hub, dimmed and unresponsive while [connected] is false. Stateless — the View forwards every
- * press/release to [viewModel]. See specs/005-home-screen-ux-redesign/contracts/ui-contract.md.
+ * hub, dimmed and unresponsive while [connected] is false. The cross scales to fill whatever
+ * region [modifier] grants it (feature 006 — see specs/006-home-ui-branding-refresh/research.md
+ * Decision 4), instead of a fixed cell size. Stateless — the View forwards every press/release to
+ * [viewModel]. See specs/005-home-screen-ux-redesign/contracts/ui-contract.md.
  */
 @Composable
 fun ControlScreen(
@@ -58,83 +58,79 @@ fun ControlScreen(
     modifier: Modifier = Modifier
 ) {
     Column(
-        modifier = modifier.fillMaxSize(),
+        modifier = modifier.fillMaxSize().testTag("control_screen"),
         verticalArrangement = Arrangement.spacedBy(24.dp, Alignment.CenterVertically),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Column(verticalArrangement = Arrangement.spacedBy(GridGap)) {
-            Row(horizontalArrangement = Arrangement.spacedBy(GridGap)) {
-                Box(Modifier.size(CellSize))
-                DirectionButton(
-                    direction = Direction.UP,
-                    icon = Icons.Filled.KeyboardArrowUp,
-                    contentDescription = "Up",
-                    testTag = "btn_up",
-                    connected = connected,
-                    onPressed = viewModel::onDirectionPressed,
-                    onReleased = viewModel::onDirectionReleased
-                )
-                Box(Modifier.size(CellSize))
-            }
-            Row(horizontalArrangement = Arrangement.spacedBy(GridGap)) {
-                DirectionButton(
-                    direction = Direction.LEFT,
-                    icon = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
-                    contentDescription = "Left",
-                    testTag = "btn_left",
-                    connected = connected,
-                    onPressed = viewModel::onDirectionPressed,
-                    onReleased = viewModel::onDirectionReleased
-                )
-                CenterHub()
-                DirectionButton(
-                    direction = Direction.RIGHT,
-                    icon = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                    contentDescription = "Right",
-                    testTag = "btn_right",
-                    connected = connected,
-                    onPressed = viewModel::onDirectionPressed,
-                    onReleased = viewModel::onDirectionReleased
-                )
-            }
-            Row(horizontalArrangement = Arrangement.spacedBy(GridGap)) {
-                Box(Modifier.size(CellSize))
-                DirectionButton(
-                    direction = Direction.DOWN,
-                    icon = Icons.Filled.KeyboardArrowDown,
-                    contentDescription = "Down",
-                    testTag = "btn_down",
-                    connected = connected,
-                    onPressed = viewModel::onDirectionPressed,
-                    onReleased = viewModel::onDirectionReleased
-                )
-                Box(Modifier.size(CellSize))
+        BoxWithConstraints(
+            modifier = Modifier.weight(1f).fillMaxWidth(),
+            contentAlignment = Alignment.Center
+        ) {
+            // Buttons are perfect squares: the grid is the largest 3x3 square (cellSize x gaps)
+            // that fits the available region, so it never distorts into rectangles.
+            val cellSize = (minOf(maxWidth, maxHeight) - GridGap * 2) / 3
+            Column(verticalArrangement = Arrangement.spacedBy(GridGap)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(GridGap)) {
+                    Box(Modifier.size(cellSize))
+                    DirectionButton(
+                        direction = Direction.UP,
+                        icon = Icons.Filled.KeyboardArrowUp,
+                        contentDescription = "Up",
+                        testTag = "btn_up",
+                        connected = connected,
+                        onPressed = viewModel::onDirectionPressed,
+                        onReleased = viewModel::onDirectionReleased,
+                        modifier = Modifier.size(cellSize)
+                    )
+                    Box(Modifier.size(cellSize))
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(GridGap)) {
+                    DirectionButton(
+                        direction = Direction.LEFT,
+                        icon = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
+                        contentDescription = "Left",
+                        testTag = "btn_left",
+                        connected = connected,
+                        onPressed = viewModel::onDirectionPressed,
+                        onReleased = viewModel::onDirectionReleased,
+                        modifier = Modifier.size(cellSize)
+                    )
+                    Box(Modifier.size(cellSize))
+                    DirectionButton(
+                        direction = Direction.RIGHT,
+                        icon = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                        contentDescription = "Right",
+                        testTag = "btn_right",
+                        connected = connected,
+                        onPressed = viewModel::onDirectionPressed,
+                        onReleased = viewModel::onDirectionReleased,
+                        modifier = Modifier.size(cellSize)
+                    )
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(GridGap)) {
+                    Box(Modifier.size(cellSize))
+                    DirectionButton(
+                        direction = Direction.DOWN,
+                        icon = Icons.Filled.KeyboardArrowDown,
+                        contentDescription = "Down",
+                        testTag = "btn_down",
+                        connected = connected,
+                        onPressed = viewModel::onDirectionPressed,
+                        onReleased = viewModel::onDirectionReleased,
+                        modifier = Modifier.size(cellSize)
+                    )
+                    Box(Modifier.size(cellSize))
+                }
             }
         }
-        Text(
-            text = if (connected) "Hold a direction to drive" else "Waiting for connection to enable controls",
-            color = Outline,
-            fontSize = 13.sp,
-            modifier = Modifier.testTag("dpad_hint")
-        )
-    }
-}
-
-/** Decorative, non-interactive center cell of the D-pad cross. */
-@Composable
-private fun CenterHub() {
-    Box(
-        modifier = Modifier
-            .size(CellSize)
-            .clip(RoundedCornerShape(20.dp))
-            .background(SurfaceSheet),
-        contentAlignment = Alignment.Center
-    ) {
-        Box(
-            modifier = Modifier
-                .size(40.dp)
-                .border(width = 2.dp, color = OutlineVariant, shape = CircleShape)
-        )
+        if (!connected) {
+            Text(
+                text = "Waiting for connection to enable controls",
+                color = Outline,
+                fontSize = 13.sp,
+                modifier = Modifier.testTag("dpad_hint")
+            )
+        }
     }
 }
 
@@ -146,7 +142,8 @@ private fun DirectionButton(
     testTag: String,
     connected: Boolean,
     onPressed: (Direction) -> Unit,
-    onReleased: (Direction) -> Unit
+    onReleased: (Direction) -> Unit,
+    modifier: Modifier = Modifier
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
@@ -177,19 +174,21 @@ private fun DirectionButton(
         onClick = {},
         enabled = connected,
         interactionSource = interactionSource,
-        modifier = Modifier
-            .size(CellSize)
+        modifier = modifier
             .alpha(if (connected) 1f else 0.35f)
             .border(width = 4.dp, color = glow, shape = RoundedCornerShape(20.dp))
             .clip(RoundedCornerShape(20.dp))
             .background(background)
             .testTag(testTag)
     ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = contentDescription,
-            tint = tint,
-            modifier = Modifier.size(32.dp)
-        )
+        BoxWithConstraints(contentAlignment = Alignment.Center) {
+            val iconSize = minOf(maxWidth, maxHeight) * 0.42f
+            Icon(
+                imageVector = icon,
+                contentDescription = contentDescription,
+                tint = tint,
+                modifier = Modifier.size(iconSize)
+            )
+        }
     }
 }
