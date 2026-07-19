@@ -2,6 +2,7 @@ package com.example.ambullrc
 
 import com.example.ambullrc.model.Direction
 import com.example.ambullrc.viewmodel.ControlViewModel
+import com.example.ambullrc.viewmodel.DebugLog
 import com.example.ambullrc.viewmodel.DirectionLogger
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -45,8 +46,11 @@ class ControlViewModelTest {
         }
     }
 
-    private fun newViewModel(connection: FakeEsp32Connection, logger: DirectionLogger) =
-        ControlViewModel(connection, logger, ioDispatcher = dispatcher)
+    private fun newViewModel(
+        connection: FakeEsp32Connection,
+        logger: DirectionLogger,
+        debugLog: DebugLog = DebugLog()
+    ) = ControlViewModel(connection, logger, debugLog, ioDispatcher = dispatcher)
 
     // --- US1: tapping while connected sends the matching command ---
 
@@ -148,5 +152,31 @@ class ControlViewModelTest {
 
         // The DOWN tap made while disconnected is never sent, before or after reconnecting.
         assertEquals(listOf("UP\n", "LEFT\n"), connection.sentCommands)
+    }
+
+    // --- Feature 004: tap outcomes are recorded in the DebugLog widget ---
+
+    @Test
+    fun tapWhileConnectedAppendsSentEntryToDebugLog() = runTest(dispatcher) {
+        val connection = FakeEsp32Connection().apply { connect() }
+        val debugLog = DebugLog()
+        val viewModel = newViewModel(connection, RecordingLogger(), debugLog)
+
+        viewModel.onDirectionTapped(Direction.UP)
+        advanceUntilIdle()
+
+        assertEquals(listOf("UP -> sent"), debugLog.entries.value)
+    }
+
+    @Test
+    fun tapWhileDisconnectedAppendsDroppedEntryToDebugLog() = runTest(dispatcher) {
+        val connection = FakeEsp32Connection() // never connected
+        val debugLog = DebugLog()
+        val viewModel = newViewModel(connection, RecordingLogger(), debugLog)
+
+        viewModel.onDirectionTapped(Direction.DOWN)
+        advanceUntilIdle()
+
+        assertEquals(listOf("DOWN -> dropped (not connected)"), debugLog.entries.value)
     }
 }

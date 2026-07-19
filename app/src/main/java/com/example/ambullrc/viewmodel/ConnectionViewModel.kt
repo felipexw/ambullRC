@@ -23,14 +23,17 @@ import kotlinx.coroutines.withTimeout
 /**
  * Owns the app-to-ESP32 connection lifecycle and exposes it as [state]. The View renders [state]
  * and forwards [connect]/[retry]/[onPermissionDenied]; all connection logic lives here, driven
- * through the [connection] seam so it is testable without Bluetooth hardware.
+ * through the [connection] seam so it is testable without Bluetooth hardware. Each state
+ * transition is also recorded in [debugLog] so it is visible on-screen (feature 004).
  *
  * @param connection the Bluetooth seam (real implementation in production, fake in tests).
+ * @param debugLog on-screen diagnostic log; shared with [ControlViewModel] by the Activity.
  * @param connectTimeoutMillis how long a single connect attempt may take before it is failed.
  * @param ioDispatcher dispatcher for the blocking Bluetooth I/O (injected for test determinism).
  */
 class ConnectionViewModel(
     private val connection: Esp32Connection,
+    private val debugLog: DebugLog = DebugLog(),
     private val connectTimeoutMillis: Long = 12_000L,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO
 ) : ViewModel() {
@@ -46,18 +49,23 @@ class ConnectionViewModel(
         connectJob?.cancel()
         connectJob = viewModelScope.launch {
             _state.value = ConnectionState.Connecting
+            debugLog.add("Connecting to ESP32…")
             try {
                 withTimeout(connectTimeoutMillis) {
                     withContext(ioDispatcher) { connection.connect() }
                 }
             } catch (e: TimeoutCancellationException) {
                 _state.value = ConnectionState.Failed(FailureReason.DEVICE_UNAVAILABLE)
+                debugLog.add("Connect failed: ${FailureReason.DEVICE_UNAVAILABLE}")
                 return@launch
             } catch (e: Esp32ConnectionException) {
-                _state.value = ConnectionState.Failed(e.toReason())
+                val reason = e.toReason()
+                _state.value = ConnectionState.Failed(reason)
+                debugLog.add("Connect failed: $reason")
                 return@launch
             }
             _state.value = ConnectionState.Connected
+            debugLog.add("Connected")
             monitorForDrop()
         }
     }
@@ -69,6 +77,7 @@ class ConnectionViewModel(
     fun onPermissionDenied() {
         connectJob?.cancel()
         _state.value = ConnectionState.Failed(FailureReason.PERMISSION_DENIED)
+        debugLog.add("Connect failed: ${FailureReason.PERMISSION_DENIED}")
     }
 
     /** After a live link is established, wait for it to drop and reflect the disconnected state. */
@@ -76,10 +85,12 @@ class ConnectionViewModel(
         try {
             withContext(ioDispatcher) { connection.awaitDisconnect() }
             _state.value = ConnectionState.Failed(FailureReason.CONNECTION_LOST)
+            debugLog.add("Connection lost")
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
             _state.value = ConnectionState.Failed(FailureReason.CONNECTION_LOST)
+            debugLog.add("Connection lost")
         }
     }
 

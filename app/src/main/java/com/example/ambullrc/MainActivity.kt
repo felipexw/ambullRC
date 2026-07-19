@@ -22,9 +22,11 @@ import com.example.ambullrc.data.BluetoothEsp32Connection
 import com.example.ambullrc.model.Esp32Connection
 import com.example.ambullrc.ui.ConnectionStatusBar
 import com.example.ambullrc.ui.ControlScreen
+import com.example.ambullrc.ui.DebugLogPanel
 import com.example.ambullrc.ui.theme.AmbullRCTheme
 import com.example.ambullrc.viewmodel.ConnectionViewModel
 import com.example.ambullrc.viewmodel.ControlViewModel
+import com.example.ambullrc.viewmodel.DebugLog
 
 class MainActivity : ComponentActivity() {
 
@@ -32,10 +34,14 @@ class MainActivity : ComponentActivity() {
     // lifecycle manages.
     private val esp32Connection: Esp32Connection by lazy { BluetoothEsp32Connection(applicationContext) }
 
+    // Shared by both ViewModels so connection-state and tap-outcome entries interleave in one
+    // on-screen widget (feature 004).
+    private val debugLog: DebugLog by lazy { DebugLog() }
+
     private val connectionViewModel: ConnectionViewModel by viewModels {
         viewModelFactory {
             initializer {
-                ConnectionViewModel(esp32Connection)
+                ConnectionViewModel(esp32Connection, debugLog)
             }
         }
     }
@@ -43,7 +49,7 @@ class MainActivity : ComponentActivity() {
     private val controlViewModel: ControlViewModel by viewModels {
         viewModelFactory {
             initializer {
-                ControlViewModel(esp32Connection)
+                ControlViewModel(esp32Connection, debugLog = debugLog)
             }
         }
     }
@@ -61,12 +67,14 @@ class MainActivity : ComponentActivity() {
             AmbullRCTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
                     val state by connectionViewModel.state.collectAsState()
+                    val logEntries by debugLog.entries.collectAsState()
                     Column(modifier = Modifier.padding(innerPadding)) {
                         ConnectionStatusBar(
                             state = state,
                             onRetry = ::ensureBluetoothPermissionThenConnect
                         )
-                        ControlScreen(viewModel = controlViewModel)
+                        ControlScreen(viewModel = controlViewModel, modifier = Modifier.weight(1f))
+                        DebugLogPanel(entries = logEntries)
                     }
                 }
             }

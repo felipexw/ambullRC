@@ -6,6 +6,7 @@ import com.example.ambullrc.model.DeviceUnavailableException
 import com.example.ambullrc.model.FailureReason
 import com.example.ambullrc.model.LinkException
 import com.example.ambullrc.viewmodel.ConnectionViewModel
+import com.example.ambullrc.viewmodel.DebugLog
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -40,8 +41,11 @@ class ConnectionViewModelTest {
         Dispatchers.resetMain()
     }
 
-    private fun newViewModel(fake: FakeEsp32Connection, timeoutMillis: Long = 12_000L) =
-        ConnectionViewModel(fake, connectTimeoutMillis = timeoutMillis, ioDispatcher = dispatcher)
+    private fun newViewModel(
+        fake: FakeEsp32Connection,
+        timeoutMillis: Long = 12_000L,
+        debugLog: DebugLog = DebugLog()
+    ) = ConnectionViewModel(fake, debugLog, connectTimeoutMillis = timeoutMillis, ioDispatcher = dispatcher)
 
     // --- US1: auto-connect success ---
 
@@ -157,5 +161,50 @@ class ConnectionViewModelTest {
         fake.simulateDrop()
         advanceUntilIdle()
         assertEquals(ConnectionState.Failed(FailureReason.CONNECTION_LOST), vm.state.value)
+    }
+
+    // --- Feature 004: state transitions are recorded in the DebugLog widget ---
+
+    @Test
+    fun connectSuccessAppendsConnectingThenConnectedToDebugLog() = runTest(dispatcher) {
+        val debugLog = DebugLog()
+        val vm = newViewModel(FakeEsp32Connection(), debugLog = debugLog)
+
+        vm.connect()
+        advanceUntilIdle()
+
+        assertEquals(listOf("Connecting to ESP32…", "Connected"), debugLog.entries.value)
+    }
+
+    @Test
+    fun connectFailureAppendsConnectFailedEntryToDebugLog() = runTest(dispatcher) {
+        val debugLog = DebugLog()
+        val vm = newViewModel(FakeEsp32Connection(connectError = DeviceUnavailableException()), debugLog = debugLog)
+
+        vm.connect()
+        advanceUntilIdle()
+
+        assertEquals(
+            listOf("Connecting to ESP32…", "Connect failed: DEVICE_UNAVAILABLE"),
+            debugLog.entries.value
+        )
+    }
+
+    @Test
+    fun midSessionDropAppendsConnectionLostToDebugLog() = runTest(dispatcher) {
+        val fake = FakeEsp32Connection()
+        val debugLog = DebugLog()
+        val vm = newViewModel(fake, debugLog = debugLog)
+
+        vm.connect()
+        advanceUntilIdle()
+
+        fake.simulateDrop()
+        advanceUntilIdle()
+
+        assertEquals(
+            listOf("Connecting to ESP32…", "Connected", "Connection lost"),
+            debugLog.entries.value
+        )
     }
 }
