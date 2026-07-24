@@ -26,6 +26,7 @@ import com.example.ambullrc.viewmodel.LogEntry
 import com.example.ambullrc.viewmodel.LogLevel
 import java.time.LocalTime
 import org.junit.Assert.assertNotEquals
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 
@@ -168,6 +169,51 @@ class DebugLogPanelTest {
         composeRule.onNodeWithText("entry-1").assertIsNotDisplayed()
         composeRule.onNodeWithTag("debug_log").performScrollToNode(hasText("entry-1"))
         composeRule.onNodeWithText("entry-1").assertIsDisplayed()
+    }
+
+    // --- line count reflects truncation instead of silently capping at the ring-buffer size ---
+
+    @Test
+    fun lineCountShowsPlainSizeWhenNotTruncated() {
+        composeRule.setContent {
+            DebugLogPanel(entries = (1..50).map { entry(LogCategory.APP, message = "entry-$it") }, truncated = false)
+        }
+        composeRule.onNodeWithTag("log_panel_handle").performClick()
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag("log_panel_line_count").assertTextEquals("50 lines")
+    }
+
+    @Test
+    fun lineCountShowsPlusSuffixWhenTruncated() {
+        composeRule.setContent {
+            DebugLogPanel(entries = (1..50).map { entry(LogCategory.APP, message = "entry-$it") }, truncated = true)
+        }
+        composeRule.onNodeWithTag("log_panel_count", useUnmergedTree = true).assertTextEquals("LOGS · 50+")
+
+        composeRule.onNodeWithTag("log_panel_handle").performClick()
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag("log_panel_line_count").assertTextEquals("50+ lines")
+    }
+
+    // --- clear button empties the log via the onClear callback ---
+
+    @Test
+    fun clearButtonInvokesOnClearCallback() {
+        var cleared = false
+        composeRule.setContent {
+            DebugLogPanel(
+                entries = listOf(entry(LogCategory.APP, message = "hello")),
+                onClear = { cleared = true }
+            )
+        }
+        composeRule.onNodeWithTag("log_panel_handle").performClick()
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag("log_panel_clear_button").performClick()
+
+        assertTrue(cleared)
     }
 
     // --- FR-012: category and level drive distinct colors ---

@@ -56,4 +56,30 @@ class DebugLogTest {
         assertEquals("entry-6", entries.first().message)
         assertEquals("entry-55", entries.last().message)
     }
+
+    @Test
+    fun notTruncatedUntilOverFiftyEntriesAdded() {
+        val log = DebugLog()
+        for (i in 1..50) {
+            log.add(LogCategory.APP, LogLevel.INFO, "entry-$i")
+        }
+        assertEquals(false, log.truncated.value)
+
+        log.add(LogCategory.APP, LogLevel.INFO, "entry-51")
+        assertEquals(true, log.truncated.value)
+    }
+
+    @Test
+    fun clearEmptiesEntriesAndResetsTruncatedFlag() {
+        val log = DebugLog()
+        for (i in 1..55) {
+            log.add(LogCategory.APP, LogLevel.INFO, "entry-$i")
+        }
+        assertEquals(true, log.truncated.value)
+
+        log.clear()
+
+        assertTrue(log.entries.value.isEmpty())
+        assertEquals(false, log.truncated.value)
+    }
 }

@@ -75,6 +75,7 @@ class MainActivity : ComponentActivity() {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
                     val state by connectionViewModel.state.collectAsState()
                     val logEntries by debugLog.entries.collectAsState()
+                    val logTruncated by debugLog.truncated.collectAsState()
                     Column(modifier = Modifier.padding(innerPadding).fillMaxSize()) {
                         ConnectionStatusBar(
                             state = state,
@@ -85,7 +86,12 @@ class MainActivity : ComponentActivity() {
                             connected = state == ConnectionState.Connected,
                             modifier = Modifier.weight(1f).fillMaxWidth()
                         )
-                        DebugLogPanel(entries = logEntries, modifier = Modifier.fillMaxWidth())
+                        DebugLogPanel(
+                            entries = logEntries,
+                            truncated = logTruncated,
+                            onClear = debugLog::clear,
+                            modifier = Modifier.fillMaxWidth()
+                        )
                     }
                 }
             }

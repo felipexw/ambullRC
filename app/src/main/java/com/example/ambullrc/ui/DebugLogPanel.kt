@@ -21,6 +21,10 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -71,7 +75,12 @@ private val TimestampFormatter: DateTimeFormatter = DateTimeFormatter.ofPattern(
  * business meaning (see specs/005-home-screen-ux-redesign/research.md Decision 6).
  */
 @Composable
-fun DebugLogPanel(entries: List<LogEntry>, modifier: Modifier = Modifier) {
+fun DebugLogPanel(
+    entries: List<LogEntry>,
+    truncated: Boolean = false,
+    onClear: () -> Unit = {},
+    modifier: Modifier = Modifier
+) {
     var expanded by rememberSaveable { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val density = LocalDensity.current
@@ -159,7 +168,7 @@ fun DebugLogPanel(entries: List<LogEntry>, modifier: Modifier = Modifier) {
             )
             if (!expanded) {
                 Text(
-                    text = "LOGS · ${entries.size}",
+                    text = "LOGS · ${entries.size.withTruncationSuffix(truncated)}",
                     color = Outline,
                     fontSize = 11.sp,
                     fontFamily = FontFamily.Monospace,
@@ -169,20 +178,39 @@ fun DebugLogPanel(entries: List<LogEntry>, modifier: Modifier = Modifier) {
         }
 
         if (expanded) {
-            Row(
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(start = 14.dp, end = 14.dp, bottom = 8.dp),
-                horizontalArrangement = Arrangement.SpaceBetween
+                    .padding(start = 14.dp, end = 14.dp, bottom = 4.dp)
             ) {
-                Text(text = "Device Logs", color = OnSurfaceVariant, fontSize = 13.sp, fontWeight = FontWeight.Medium)
-                Text(
-                    text = "${entries.size} lines",
-                    color = Outline,
-                    fontSize = 11.sp,
-                    fontFamily = FontFamily.Monospace,
-                    modifier = Modifier.testTag("log_panel_line_count")
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(text = "Device Logs", color = OnSurfaceVariant, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                    Text(
+                        text = "${entries.size.withTruncationSuffix(truncated)} lines",
+                        color = Outline,
+                        fontSize = 11.sp,
+                        fontFamily = FontFamily.Monospace,
+                        modifier = Modifier.testTag("log_panel_line_count")
+                    )
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    IconButton(
+                        onClick = onClear,
+                        modifier = Modifier.testTag("log_panel_clear_button")
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Delete,
+                            contentDescription = "Clear logs",
+                            tint = Outline
+                        )
+                    }
+                }
             }
 
             val listState = rememberLazyListState()
@@ -234,6 +262,8 @@ private fun LogRow(entry: LogEntry) {
         )
     }
 }
+
+private fun Int.withTruncationSuffix(truncated: Boolean): String = if (truncated) "$this+" else "$this"
 
 private fun LogCategory.tagColor(): Color = when (this) {
     LogCategory.SENT -> ConnectingDot
