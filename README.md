@@ -2,7 +2,7 @@
 
 An Android app that acts as a **Bluetooth remote control for an ESP32 microcontroller**. The ESP32
 drives a small RC vehicle: one **servomotor** (rear steering) and one **DC motor** (engine). The app
-sends commands (signals) to the ESP32 — that is its single purpose.
+sends commands (signals) to the ESP32 — that is its single purpose. The ESP32 controller code is [here](https://github.com/felipexw/ambullRC-ESP32)
 
 > This is a personal learning side-project for exploring electronics, **not** a production app. UX is
 > deliberately minimal. Simplicity (YAGNI) is the governing principle.
