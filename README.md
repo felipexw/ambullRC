@@ -73,11 +73,3 @@ Bluetooth auto-connect** path can only be verified on a **physical phone paired 
 Features are driven through **[Spec Kit](https://github.com/github/spec-kit)** slash commands:
 `/speckit-specify` → `/speckit-plan` → `/speckit-tasks` → `/speckit-analyze` → `/speckit-implement`.
 Every feature ships with unit **and** integration tests (see the constitution, Principle V).
-
-## Status
-
-| Feature | State |
-|---------|-------|
-| 001 — Direction buttons | Implemented + tested |
-| 002 — ESP32 Bluetooth auto-connect | Implemented; ⚠️ **not yet verified on real hardware** (task T020 pending until ESP32 firmware is deployed) |
-| Command transmission to ESP32 | Not started (the `Esp32Connection` seam is the attach point) |
