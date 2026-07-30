@@ -7,6 +7,8 @@ sends commands (signals) to the ESP32 — that is its single purpose. The ESP32 
 > This is a personal learning side-project for exploring electronics, **not** a production app. UX is
 > deliberately minimal. Simplicity (YAGNI) is the governing principle.
 
+[demo (WIP)](https://www.youtube.com/watch?v=EBZQrzWVDxw&list=PLal27zLmiqjQ&index=1)
+
 ## What it does
 
 - **On startup**, auto-connects to a bonded ESP32 over **Bluetooth Classic (RFCOMM / SPP)**.
