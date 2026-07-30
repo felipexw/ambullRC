@@ -179,3 +179,5 @@ motor itself once the stream goes quiet (release, backgrounding, or connection l
 this). `ControlScreen`'s `DirectionButton` now drives this off `interactionSource`'s pressed state
 (`LaunchedEffect(isPressed)`) instead of `IconButton.onClick`. `ControlViewModelTest` and
 `ControlScreenTest` were rewritten for the new API; all unit and instrumented tests pass.
+Validated on real hardware (2026-07-30): the ESP32 does stop the motor once the direction stream
+goes quiet, and release-while-held stops the motor as expected on a physical run.

@@ -127,7 +127,7 @@ reason, the timeout, retry recovery, and `CONNECTION_LOST`; tap Retry in the UI 
 **Purpose**: Run the full suite and the on-device smoke check from quickstart.md (Definition of Done).
 
 - [X] T019 [P] Run `./gradlew :app:testDebugUnitTest` and `./gradlew :app:connectedDebugAndroidTest`; confirm all unit and instrumented tests pass (quickstart.md Definition of Done).
-- [ ] T020 On-device smoke check per quickstart.md using a real phone with a bonded ESP32 (SerialBT sketch advertising `Esp32Config.DEVICE_NAME`): verify auto-connect (SC-001), failure + Retry recovery (SC-003/SC-004), and the permission-denied path (FR-003). Requires physical hardware (emulators have no Bluetooth radio).
+- [X] T020 On-device smoke check per quickstart.md using a real phone with a bonded ESP32 (SerialBT sketch advertising `Esp32Config.DEVICE_NAME`): verify auto-connect (SC-001), failure + Retry recovery (SC-003/SC-004), and the permission-denied path (FR-003). Requires physical hardware (emulators have no Bluetooth radio).
 
 ---
 

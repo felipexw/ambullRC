@@ -60,25 +60,24 @@ with an ESP32.
 
 Features 001 (direction buttons), 002 (ESP32 Bluetooth auto-connect), 003 (send direction
 commands), 004 (in-app log viewer widget), and 005 (home screen UX redesign) are implemented,
-with passing unit + instrumented tests. On-device validation is done for direction commands and
-the log widget (task **T011** in `specs/003-send-direction-commands/tasks.md` and task **T013**
-in `specs/004-in-app-log-viewer/tasks.md`). Task **T020** in
-`specs/002-esp32-bluetooth-connection/tasks.md` (dedicated auto-connect smoke check) remains
-open.
+with passing unit + instrumented tests. On-device validation is done for direction commands, the
+log widget, and auto-connect (task **T011** in `specs/003-send-direction-commands/tasks.md`, task
+**T013** in `specs/004-in-app-log-viewer/tasks.md`, and task **T020** in
+`specs/002-esp32-bluetooth-connection/tasks.md`, all confirmed on real hardware).
 
 **Feature 005** redesigned the header (color-coded/animated connection status pill), the D-pad
 (cross layout, pressed/disabled visual states), and the log panel (tap-or-drag collapsible sheet,
 timestamped/category-colored entries), per `specs/005-home-screen-ux-redesign/`. It also fixed the
 theme to a single dark palette (no more Material You dynamic color) and gave log entries structure
-(`viewmodel/LogEntry.kt`) instead of plain strings. Verified visually on the emulator; task **T023**
-in `specs/005-home-screen-ux-redesign/tasks.md` (on-device ESP32 validation) remains open.
+(`viewmodel/LogEntry.kt`) instead of plain strings. Verified visually on the emulator and, on
+2026-07-30, on real hardware (task **T023** in `specs/005-home-screen-ux-redesign/tasks.md`).
 
 **2026-07-18 hold-to-drive change**: `ControlViewModel.onDirectionTapped` (single send per tap)
 was replaced with `onDirectionPressed`/`onDirectionReleased` — a press resends that direction's
 command every 100ms until released, with no separate "stop" command; the ESP32 is expected to
 stop the motor itself once the stream goes quiet. See the "Post-ship change" note in
-`specs/003-send-direction-commands/tasks.md`. Unit + instrumented tests pass, but this has **not
-yet been validated on real hardware** — confirm the ESP32 firmware actually stops the motor when
-the direction stream stops arriving.
+`specs/003-send-direction-commands/tasks.md`. Validated on real hardware on 2026-07-30: the ESP32
+does stop the motor once the stream goes quiet, and release-while-held stops the motor as
+expected.
 
 No further work is currently planned.
