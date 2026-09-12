@@ -1,29 +1,34 @@
 <!--
 Sync Impact Report
 ==================
-Version change: 1.0.0 → 2.0.0
-Modified principles:
-  - IV. Function Over Form (UX Is Not a Priority) → IV. Delightful UX, Simple
-    Implementation (backward-incompatible redefinition: the app now MUST
-    invest in polished, delightful UX/interactions, reversing the prior
-    "don't spend effort on styling" stance; architectural simplicity remains
-    non-negotiable and now explicitly bounds how that polish is achieved)
-Added sections: none
+Version change: 2.0.0 → 2.1.0
+Modified principles: none (no principle redefined in a backward-incompatible
+  way)
+Added sections/content:
+  - Hardware & Communication Scope: actuator list expanded from "exactly two
+    actuators" (servo + DC motor) to include a lights on/off accessory as a
+    third supported actuator, plus a documented "simple discrete accessory"
+    pattern so a future single accessory (e.g. a speaker, not built yet) can
+    be added later via a small amendment instead of re-litigating scope.
+  - Hardware & Communication Scope: narrow exception added to the one-way-
+    remote rule, permitting the app to read back an accessory's own on/off
+    state (e.g. lights) while steering/throttle commands remain strictly
+    one-way (no telemetry read-back for drive actuators).
 Removed sections: none
-Also updated: Principle V rationale and Governance example clause, which
-  cross-referenced the old "UX doesn't matter" stance of Principle IV and
-  would otherwise now read as self-contradictory.
 Templates requiring updates:
   - .specify/templates/plan-template.md ✅ no changes required (Constitution
-    Check gate is generic/data-driven; will pull updated Principle IV from
-    this file at plan time)
+    Check gate is generic/data-driven; will pull updated scope from this
+    file at plan time)
   - .specify/templates/spec-template.md ✅ no changes required (project-agnostic)
-  - .specify/templates/tasks-template.md ✅ no changes required (Polish phase
-    wording already generic; now also covers UX-delight tasks under Principle IV)
+  - .specify/templates/tasks-template.md ✅ no changes required (no
+    actuator/one-way references)
   - .claude/skills/speckit-*/SKILL.md ✅ reviewed, no stale references found
-  - CLAUDE.md ✅ updated Principle IV bullet to match new wording
-  - AGENTS.md ✅ updated Principle IV bullet to match new wording
-Follow-up TODOs: none.
+  - CLAUDE.md ✅ updated project-summary line to mention the lights accessory
+  - AGENTS.md ✅ updated project-summary line to mention the lights accessory
+Follow-up TODOs: none. The speaker accessory itself is explicitly NOT being
+  added now — only the documentation pattern that will let it be added later
+  without a scope debate, per Principle I (YAGNI): no code or abstraction for
+  it exists yet.
 -->
 
 # AmbullRC Constitution
@@ -99,19 +104,37 @@ state still needs unit coverage.
 
 ## Hardware & Communication Scope
 
-- The ESP32 peer controls exactly two actuators: one servomotor (rear-wheel
-  steering) and one DC motor (drive/engine). The app's command surface MUST
-  map directly to these two actuators — steering position/angle and
-  throttle/speed (plus stop/neutral) — and MUST NOT be generalized into an
-  arbitrary multi-channel or plugin-style command system.
+- The ESP32 peer controls two drive actuators — one servomotor (rear-wheel
+  steering) and one DC motor (drive/engine) — plus a small, explicitly
+  enumerated set of simple discrete accessories that are switched, not
+  driven: currently just the lights (on/off). The app's command surface MUST
+  map directly to this enumerated list — steering position/angle,
+  throttle/speed (plus stop/neutral), and each accessory's on/off state —
+  and MUST NOT be generalized into an arbitrary multi-channel or
+  plugin-style command system that accepts channels/accessories not
+  explicitly listed here.
+- Additional simple discrete accessories (each a single on/off switch, no
+  variable range) MAY be added later by amending this list — e.g. a speaker
+  is anticipated but intentionally NOT implemented yet, per Principle I
+  (YAGNI): no code, abstraction, or protocol support for it exists until a
+  feature concretely requires it and this section is amended to name it.
+  This bullet documents the pattern so adding one more such accessory is a
+  small, expected amendment rather than a re-litigation of scope; it is not
+  a blanket allowance for arbitrary or unlisted accessories.
 - Communication is over Bluetooth. The command protocol (message format,
   framing, whether Classic SPP or BLE is used) is a technical decision made
   in the implementation plan for the relevant feature, not fixed here — but
   whatever is chosen MUST stay minimal (e.g., a small fixed-size message or
   simple delimited text), consistent with Principle I.
-- The app is a one-way remote control: sending commands to the ESP32 is the
-  primary path. Reading telemetry/state back from the ESP32 is out of scope
-  unless a future feature explicitly requires it.
+- The app is primarily a one-way remote control: sending commands to the
+  ESP32 is the primary path, and the two drive actuators (steering,
+  throttle) remain strictly one-way — the app MUST NOT read their state back.
+  The one narrow exception is that the app MAY read back a listed discrete
+  accessory's own on/off state (e.g. lights) over Bluetooth, so the UI can
+  display what the ESP32 actually confirms rather than the app's own guess.
+  Reading back anything else (drive-actuator telemetry, sensor data,
+  diagnostics) remains out of scope unless a future feature explicitly
+  requires it and amends this section accordingly.
 
 ## Development Workflow & Quality Gates
 
@@ -151,4 +174,4 @@ update the version number below per semantic versioning:
 approach honors Principles I–V above. Any deviation MUST be recorded and
 justified in that feature's plan.md Complexity Tracking table.
 
-**Version**: 2.0.0 | **Ratified**: 2026-07-17 | **Last Amended**: 2026-07-19
+**Version**: 2.1.0 | **Ratified**: 2026-07-17 | **Last Amended**: 2026-09-11

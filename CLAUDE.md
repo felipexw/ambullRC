@@ -6,8 +6,11 @@ Guidance for Claude Code (and other AI agents) working in this repository. See a
 ## What this project is
 
 AmbullRC is an Android **Bluetooth remote control for an ESP32** that drives one servomotor (rear
-steering) and one DC motor (engine). It is a personal **learning side-project**, not production. Its
-single purpose is to send commands (signals) to the ESP32.
+steering) and one DC motor (engine), plus a lights on/off accessory. It is a personal **learning
+side-project**, not production. Its single purpose is to send commands (signals) to the ESP32 —
+with one narrow exception: the app may read a discrete accessory's own on/off state (e.g. lights)
+back from the ESP32 so the UI can show it (see the constitution's Hardware & Communication Scope
+section, v2.1.0).
 
 ## Non-negotiable principles
 

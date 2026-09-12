@@ -19,11 +19,14 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.Lightbulb
+import androidx.compose.material.icons.outlined.Lightbulb
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -57,6 +60,9 @@ fun ControlScreen(
     connected: Boolean,
     modifier: Modifier = Modifier
 ) {
+    // Forwards connection state to the ViewModel so the lights control (feature 007) enables and
+    // disables at the same moment this screen's own D-pad does.
+    LaunchedEffect(connected) { viewModel.setConnected(connected) }
     Column(
         modifier = modifier.fillMaxSize().testTag("control_screen"),
         verticalArrangement = Arrangement.spacedBy(24.dp, Alignment.CenterVertically),
@@ -108,7 +114,10 @@ fun ControlScreen(
                     )
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(GridGap)) {
-                    Box(Modifier.size(cellSize))
+                    LightsButton(
+                        viewModel = viewModel,
+                        modifier = Modifier.size(cellSize)
+                    )
                     DirectionButton(
                         direction = Direction.DOWN,
                         icon = Icons.Filled.KeyboardArrowDown,
@@ -187,6 +196,41 @@ private fun DirectionButton(
                 imageVector = icon,
                 contentDescription = contentDescription,
                 tint = tint,
+                modifier = Modifier.size(iconSize)
+            )
+        }
+    }
+}
+
+/**
+ * Toggles the RC's lights (feature 007). Unlike [DirectionButton], this is a plain tap, not a
+ * press/release pair — lights don't need hold-to-repeat. Its icon shows [ControlViewModel.lightsOn]
+ * — the ESP32's last-confirmed state, never what a tap would produce — and it is only enabled
+ * while [ControlViewModel.lightsEnabled] is true.
+ */
+@Composable
+private fun LightsButton(
+    viewModel: ControlViewModel,
+    modifier: Modifier = Modifier
+) {
+    val lightsOn by viewModel.lightsOn.collectAsState()
+    val lightsEnabled by viewModel.lightsEnabled.collectAsState()
+
+    IconButton(
+        onClick = viewModel::onLightsTapped,
+        enabled = lightsEnabled,
+        modifier = modifier
+            .alpha(if (lightsEnabled) 1f else 0.35f)
+            .clip(RoundedCornerShape(20.dp))
+            .background(SurfaceHigh)
+            .testTag("btn_lights")
+    ) {
+        BoxWithConstraints(contentAlignment = Alignment.Center) {
+            val iconSize = minOf(maxWidth, maxHeight) * 0.42f
+            Icon(
+                imageVector = if (lightsOn) Icons.Filled.Lightbulb else Icons.Outlined.Lightbulb,
+                contentDescription = "Lights",
+                tint = if (lightsOn) Accent else OnSurfaceVariant,
                 modifier = Modifier.size(iconSize)
             )
         }

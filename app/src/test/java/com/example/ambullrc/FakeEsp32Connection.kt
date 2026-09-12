@@ -3,6 +3,7 @@ package com.example.ambullrc
 import com.example.ambullrc.model.Esp32Connection
 import com.example.ambullrc.model.Esp32ConnectionException
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.flow.MutableStateFlow
 
 /**
  * Test double for [Esp32Connection]. Stands in for the Android Bluetooth API so the
@@ -34,6 +35,11 @@ class FakeEsp32Connection(
     /** Completed by a test to simulate the established link dropping. */
     private var disconnectSignal = CompletableDeferred<Unit>()
 
+    /** The simulated ESP32's confirmed lights state. A test pushes a value directly (e.g.
+     *  `lightState.value = true`) to simulate a recognized inbound line; reset to null on
+     *  [connect], matching the real seam's behavior. */
+    override val lightState = MutableStateFlow<Boolean?>(null)
+
     override suspend fun connect() {
         connectCount++
         if (connectDelayMillis > 0L) {
@@ -43,6 +49,7 @@ class FakeEsp32Connection(
         // Success: arm a fresh drop signal for this connection.
         disconnectSignal = CompletableDeferred()
         isConnected = true
+        lightState.value = null
     }
 
     override suspend fun awaitDisconnect() {

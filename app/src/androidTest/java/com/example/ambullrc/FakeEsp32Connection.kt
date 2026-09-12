@@ -2,6 +2,7 @@ package com.example.ambullrc
 
 import com.example.ambullrc.model.Esp32Connection
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.flow.MutableStateFlow
 
 /**
  * Minimal test double for [Esp32Connection], scoped to instrumented UI tests (the `src/test` fake
@@ -13,8 +14,13 @@ class FakeEsp32Connection : Esp32Connection {
     val sentCommands = mutableListOf<String>()
     private val disconnectSignal = CompletableDeferred<Unit>()
 
+    /** The simulated ESP32's confirmed lights state; a test pushes a value directly
+     *  (`lightState.value = true`) to simulate a recognized inbound line. */
+    override val lightState = MutableStateFlow<Boolean?>(null)
+
     override suspend fun connect() {
         isConnected = true
+        lightState.value = null
     }
 
     override suspend fun awaitDisconnect() {

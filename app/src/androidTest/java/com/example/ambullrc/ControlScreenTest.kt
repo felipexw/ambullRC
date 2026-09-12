@@ -57,6 +57,19 @@ class ControlScreenTest {
         }
     }
 
+    /** Same as [setContentWith] but hands back the connection/viewModel so a test can push a
+     *  confirmed lights state onto the fake and assert against the resulting ViewModel state. */
+    private fun setContentWithLights(
+        connected: Boolean = true
+    ): Pair<FakeEsp32Connection, ControlViewModel> {
+        val connection = FakeEsp32Connection()
+        val viewModel = ControlViewModel(connection, RecordingLogger())
+        composeRule.setContent {
+            ControlScreen(viewModel = viewModel, connected = connected)
+        }
+        return connection to viewModel
+    }
+
     /** Presses and immediately releases the tagged button, as a single logical tap. */
     private fun tap(tag: String) {
         val node = composeRule.onNodeWithTag(tag)
@@ -223,5 +236,65 @@ class ControlScreenTest {
             assertTrue(buttonBounds.right <= screenBounds.right)
             assertTrue(buttonBounds.bottom <= screenBounds.bottom)
         }
+    }
+
+    // --- Feature 007: lights button — position, confirmed-state icon, enablement ---
+    // The app never queries the ESP32 for lights state; the button enables purely on
+    // `connected`, same as the D-pad, and its icon only moves when the ESP32 reports state
+    // unprompted (simulated here by pushing directly onto the fake's lightState).
+
+    @Test
+    fun lightsButtonIsDisplayedBetweenLeftAndDown() {
+        setContentWith(RecordingLogger(), connected = true)
+        composeRule.onNodeWithTag("btn_lights").assertIsDisplayed()
+
+        val leftBounds = composeRule.onNodeWithTag("btn_left").getUnclippedBoundsInRoot()
+        val downBounds = composeRule.onNodeWithTag("btn_down").getUnclippedBoundsInRoot()
+        val lightsBounds = composeRule.onNodeWithTag("btn_lights").getUnclippedBoundsInRoot()
+
+        // Bottom-left corner cell: directly below Left, directly left of Down.
+        assertTrue(lightsBounds.left <= leftBounds.left + 1.dp)
+        assertTrue(lightsBounds.top >= leftBounds.bottom - 1.dp)
+        assertTrue(lightsBounds.top >= downBounds.top - 1.dp)
+        assertTrue(lightsBounds.right <= downBounds.left + 1.dp)
+    }
+
+    @Test
+    fun lightsButtonIsDisabledWhileNotConnected() {
+        setContentWithLights(connected = false)
+        composeRule.onNodeWithTag("btn_lights").assertIsNotEnabled()
+    }
+
+    @Test
+    fun lightsButtonIsEnabledAssoonAsConnectedWithNoQueryNeeded() {
+        setContentWithLights(connected = true)
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag("btn_lights").assertIsEnabled()
+    }
+
+    @Test
+    fun lightsButtonIconSwapsWhenEsp32ReportsAState() {
+        val (connection, _) = setContentWithLights(connected = true)
+        composeRule.waitForIdle()
+
+        val beforeReport = composeRule.onNodeWithTag("btn_lights")
+            .captureToImage().pixelSignature()
+
+        connection.lightState.value = true
+        composeRule.waitForIdle()
+
+        val afterReport = composeRule.onNodeWithTag("btn_lights")
+            .captureToImage().pixelSignature()
+
+        // The icon swap (outline -> filled bulb) alters the rendered pixels.
+        assertNotEquals(beforeReport, afterReport)
+    }
+
+    @Test
+    fun tappingLightsWhileDisabledSendsNothing() {
+        val (connection, _) = setContentWithLights(connected = false)
+        composeRule.onNodeWithTag("btn_lights").performTouchInput { down(center); up() }
+        composeRule.waitForIdle()
+        assertTrue(connection.sentCommands.none { it.startsWith("LIGHTS_") })
     }
 }

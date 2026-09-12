@@ -292,4 +292,165 @@ class ControlViewModelTest {
             debugLog.entries.value.summaries()
         )
     }
+
+    // --- Feature 007: lights toggle — no polling; the app only ever sends a signal on tap,
+    //     and the icon only ever moves in response to whatever the ESP32 reports unprompted ---
+
+    @Test
+    fun connectingEnablesTheControlImmediatelyWithNoQuerySent() = runTest(dispatcher) {
+        val connection = FakeEsp32Connection().apply { connect() }
+        val viewModel = newViewModel(connection, RecordingLogger())
+
+        viewModel.setConnected(true)
+        advanceTimeBy(2_000)
+        runCurrent()
+
+        assertEquals(true, viewModel.lightsEnabled.value)
+        assertEquals(false, viewModel.lightsOn.value)
+        // No query of any kind — the only lights-related bytes ever sent are toggle commands.
+        assertTrue(connection.sentCommands.isEmpty())
+    }
+
+    @Test
+    fun tapSendsOppositeOfConfirmedStateAndIconOnlyMovesWhenEsp32Reports() = runTest(dispatcher) {
+        val connection = FakeEsp32Connection().apply { connect() }
+        val viewModel = newViewModel(connection, RecordingLogger())
+
+        viewModel.setConnected(true)
+        runCurrent()
+
+        viewModel.onLightsTapped()
+        runCurrent()
+
+        assertEquals(listOf("LIGHTS_ON\n"), connection.sentCommands)
+        // Confirmed-only: the tap itself must not move the icon.
+        assertEquals(false, viewModel.lightsOn.value)
+
+        connection.lightState.value = true
+        runCurrent()
+        assertEquals(true, viewModel.lightsOn.value)
+    }
+
+    @Test
+    fun secondTapSendsTheOppositeOfWhateverWasLastReported() = runTest(dispatcher) {
+        val connection = FakeEsp32Connection().apply { connect() }
+        val viewModel = newViewModel(connection, RecordingLogger())
+
+        viewModel.setConnected(true)
+        runCurrent()
+        connection.lightState.value = true
+        runCurrent()
+
+        viewModel.onLightsTapped()
+        runCurrent()
+
+        assertEquals(listOf("LIGHTS_OFF\n"), connection.sentCommands)
+    }
+
+    @Test
+    fun tapWhileDisconnectedSendsNothing() = runTest(dispatcher) {
+        val connection = FakeEsp32Connection() // never connected
+        val viewModel = newViewModel(connection, RecordingLogger())
+
+        viewModel.onLightsTapped()
+        runCurrent()
+
+        assertTrue(connection.sentCommands.isEmpty())
+    }
+
+    @Test
+    fun disconnectingDisablesButKeepsLastKnownState() = runTest(dispatcher) {
+        val connection = FakeEsp32Connection().apply { connect() }
+        val viewModel = newViewModel(connection, RecordingLogger())
+
+        viewModel.setConnected(true)
+        runCurrent()
+        connection.lightState.value = true
+        runCurrent()
+        assertEquals(true, viewModel.lightsEnabled.value)
+
+        viewModel.setConnected(false)
+        runCurrent()
+
+        assertEquals(false, viewModel.lightsEnabled.value)
+        // Last-known state persists across the drop, per Edge Cases.
+        assertEquals(true, viewModel.lightsOn.value)
+    }
+
+    @Test
+    fun aLateEsp32ReportStillUpdatesTheIconEvenWhileDisconnected() = runTest(dispatcher) {
+        // The app only ever listens; it never gates what it accepts based on setConnected.
+        val connection = FakeEsp32Connection().apply { connect() }
+        val viewModel = newViewModel(connection, RecordingLogger())
+
+        connection.lightState.value = true
+        runCurrent()
+
+        assertEquals(true, viewModel.lightsOn.value)
+    }
+
+    @Test
+    fun holdingADirectionAndTappingLightsSendsBothWithoutInterruption() = runTest(dispatcher) {
+        val connection = FakeEsp32Connection().apply { connect() }
+        val viewModel = newViewModel(connection, RecordingLogger())
+
+        viewModel.setConnected(true)
+        runCurrent()
+
+        viewModel.onDirectionPressed(Direction.UP)
+        advanceTimeBy(250)
+        runCurrent()
+        viewModel.onLightsTapped()
+        advanceTimeBy(250)
+        runCurrent()
+        viewModel.onDirectionReleased(Direction.UP)
+        advanceUntilIdle()
+
+        assertTrue(connection.sentCommands.contains("LIGHTS_ON\n"))
+        assertTrue(connection.sentCommands.count { it == "UP\n" } >= 4)
+    }
+
+    @Test
+    fun tapWhileEnabledAppendsSentEntryToDebugLog() = runTest(dispatcher) {
+        val connection = FakeEsp32Connection().apply { connect() }
+        val debugLog = DebugLog()
+        val viewModel = newViewModel(connection, RecordingLogger(), debugLog)
+
+        viewModel.setConnected(true)
+        runCurrent()
+        connection.lightState.value = false
+        runCurrent()
+
+        viewModel.onLightsTapped()
+        runCurrent()
+
+        assertTrue(
+            debugLog.entries.value.summaries().any {
+                it.first == LogCategory.SENT &&
+                    it.second == LogLevel.INFO &&
+                    it.third == "LIGHTS_ON -> sent (ESP32 last reported: OFF)"
+            }
+        )
+    }
+
+    // --- Feature 007 US2: the control reflects connection state ---
+
+    @Test
+    fun tapAfterDisconnectSendsNothingAndDoesNotChangeLightsOn() = runTest(dispatcher) {
+        val connection = FakeEsp32Connection().apply { connect() }
+        val viewModel = newViewModel(connection, RecordingLogger())
+
+        viewModel.setConnected(true)
+        runCurrent()
+        connection.lightState.value = true
+        runCurrent()
+        viewModel.setConnected(false)
+        runCurrent()
+
+        viewModel.onLightsTapped()
+        runCurrent()
+
+        assertTrue(connection.sentCommands.none { it == "LIGHTS_ON\n" || it == "LIGHTS_OFF\n" })
+        assertEquals(true, viewModel.lightsOn.value)
+    }
 }

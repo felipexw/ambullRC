@@ -1,5 +1,7 @@
 package com.example.ambullrc.model
 
+import kotlinx.coroutines.flow.StateFlow
+
 /**
  * Seam over the Bluetooth link to the ESP32. Keeping this an interface lets the connection-handling
  * logic (in ConnectionViewModel) be exercised against a fake, with no Android Bluetooth classes and
@@ -26,6 +28,14 @@ interface Esp32Connection {
      * is no live connection or the write failed for any reason. Never throws.
      */
     suspend fun send(message: String): Boolean
+
+    /**
+     * The ESP32's most recently confirmed lights on/off state, or null if no confirmation has been
+     * received since the current connection attempt began. Never set directly by callers — only
+     * updated by the seam's own reader loop when it recognizes an inbound state line. Reset to null
+     * at the start of every [connect].
+     */
+    val lightState: StateFlow<Boolean?>
 }
 
 /** Failure raised by [Esp32Connection.connect]. */

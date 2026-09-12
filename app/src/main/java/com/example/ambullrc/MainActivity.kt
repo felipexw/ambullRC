@@ -76,6 +76,7 @@ class MainActivity : ComponentActivity() {
                     val state by connectionViewModel.state.collectAsState()
                     val logEntries by debugLog.entries.collectAsState()
                     val logTruncated by debugLog.truncated.collectAsState()
+                    val connected = state == ConnectionState.Connected
                     Column(modifier = Modifier.padding(innerPadding).fillMaxSize()) {
                         ConnectionStatusBar(
                             state = state,
@@ -83,7 +84,7 @@ class MainActivity : ComponentActivity() {
                         )
                         ControlScreen(
                             viewModel = controlViewModel,
-                            connected = state == ConnectionState.Connected,
+                            connected = connected,
                             modifier = Modifier.weight(1f).fillMaxWidth()
                         )
                         DebugLogPanel(

@@ -10,9 +10,14 @@ import com.example.ambullrc.model.BluetoothDisabledException
 import com.example.ambullrc.model.DeviceUnavailableException
 import com.example.ambullrc.model.Esp32Connection
 import com.example.ambullrc.model.LinkException
+import java.io.BufferedReader
 import java.io.IOException
 import java.io.InputStream
+import java.io.InputStreamReader
 import java.io.OutputStream
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 
 /**
  * Real [Esp32Connection] over Bluetooth Classic (RFCOMM / SPP). Connects to the single bonded
@@ -32,8 +37,12 @@ class BluetoothEsp32Connection(context: Context) : Esp32Connection {
     private val adapter: BluetoothAdapter?
         get() = appContext.getSystemService(BluetoothManager::class.java)?.adapter
 
+    private val _lightState = MutableStateFlow<Boolean?>(null)
+    override val lightState: StateFlow<Boolean?> = _lightState.asStateFlow()
+
     @SuppressLint("MissingPermission")
     override suspend fun connect() {
+        _lightState.value = null
         val adapter = adapter ?: throw BluetoothDisabledException()
         if (!adapter.isEnabled) throw BluetoothDisabledException()
 
@@ -57,11 +66,18 @@ class BluetoothEsp32Connection(context: Context) : Esp32Connection {
 
     override suspend fun awaitDisconnect() {
         val stream = inputStream ?: return
-        val buffer = ByteArray(64)
         try {
-            // Block until the link drops. Bytes are discarded — this is liveness only, not telemetry.
-            while (stream.read(buffer) != -1) {
-                // discard
+            // Block until the link drops. This is the connection's only stream reader, so lights
+            // state confirmations (feature 007) ride along on the same loop that already detects
+            // disconnects — a recognized line updates _lightState; anything else is discarded, same
+            // as when this loop only drained raw bytes.
+            val reader = BufferedReader(InputStreamReader(stream, Charsets.UTF_8))
+            while (true) {
+                val line = reader.readLine() ?: break
+                when (line) {
+                    "LIGHT_ON" -> _lightState.value = true
+                    "LIGHT_OFF" -> _lightState.value = false
+                }
             }
         } catch (e: IOException) {
             // Link dropped or socket closed — treated as disconnect.
