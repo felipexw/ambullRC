@@ -1,5 +1,8 @@
 package com.example.ambullrc
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.test.assertHasClickAction
@@ -10,11 +13,11 @@ import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.assertWidthIsAtLeast
 import androidx.compose.ui.test.assertHeightIsAtLeast
 import androidx.compose.ui.test.captureToImage
-import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.unit.DpRect
 import androidx.compose.ui.unit.dp
 import com.example.ambullrc.model.Direction
 import com.example.ambullrc.ui.ControlScreen
@@ -57,9 +60,29 @@ class ControlScreenTest {
         }
     }
 
+    /** A node's on-screen bounding box in dp. Unlike `getUnclippedBoundsInRoot`, this accounts
+     *  for the D-pad's 45-degree rotation, so it reflects where the button actually appears. */
+    private fun visualBounds(tag: String): DpRect = with(composeRule.density) {
+        val bounds = composeRule.onNodeWithTag(tag).fetchSemanticsNode().boundsInRoot
+        DpRect(bounds.left.toDp(), bounds.top.toDp(), bounds.right.toDp(), bounds.bottom.toDp())
+    }
+
     /** Same as [setContentWith] but hands back the connection/viewModel so a test can push a
      *  confirmed lights state onto the fake and assert against the resulting ViewModel state. */
     private fun setContentWithLights(
+        connected: Boolean = true
+    ): Pair<FakeEsp32Connection, ControlViewModel> {
+        val connection = FakeEsp32Connection()
+        val viewModel = ControlViewModel(connection, RecordingLogger())
+        composeRule.setContent {
+            ControlScreen(viewModel = viewModel, connected = connected)
+        }
+        return connection to viewModel
+    }
+
+    /** Same as [setContentWithLights] but for the horn button (feature 008): hands back the
+     *  connection/viewModel so a test can assert on sent commands and horn state. */
+    private fun setContentWithHorn(
         connected: Boolean = true
     ): Pair<FakeEsp32Connection, ControlViewModel> {
         val connection = FakeEsp32Connection()
@@ -228,14 +251,30 @@ class ControlScreenTest {
     @Test
     fun directionButtonsStayWithinControlScreenBounds() {
         setContentWith(RecordingLogger(), connected = true)
-        val screenBounds = composeRule.onNodeWithTag("control_screen").getUnclippedBoundsInRoot()
+        val screenBounds = visualBounds("control_screen")
         for (tag in tags) {
-            val buttonBounds = composeRule.onNodeWithTag(tag).getUnclippedBoundsInRoot()
+            val buttonBounds = visualBounds(tag)
             assertTrue(buttonBounds.left >= screenBounds.left)
             assertTrue(buttonBounds.top >= screenBounds.top)
             assertTrue(buttonBounds.right <= screenBounds.right)
             assertTrue(buttonBounds.bottom <= screenBounds.bottom)
         }
+    }
+
+    @Test
+    fun directionButtonsMeetAroundATinyCenter() {
+        setContentWith(RecordingLogger(), connected = true)
+        val up = visualBounds("btn_up")
+        val down = visualBounds("btn_down")
+        val left = visualBounds("btn_left")
+        val right = visualBounds("btn_right")
+
+        // Opposite arrows' tips almost meet: the empty center between them is only a few dp,
+        // not a whole button-sized cell.
+        val verticalGap = down.top - up.bottom
+        val horizontalGap = right.left - left.right
+        assertTrue(verticalGap >= 0.dp && verticalGap < 16.dp)
+        assertTrue(horizontalGap >= 0.dp && horizontalGap < 16.dp)
     }
 
     // --- Feature 007: lights button — position, confirmed-state icon, enablement ---
@@ -248,9 +287,9 @@ class ControlScreenTest {
         setContentWith(RecordingLogger(), connected = true)
         composeRule.onNodeWithTag("btn_lights").assertIsDisplayed()
 
-        val leftBounds = composeRule.onNodeWithTag("btn_left").getUnclippedBoundsInRoot()
-        val downBounds = composeRule.onNodeWithTag("btn_down").getUnclippedBoundsInRoot()
-        val lightsBounds = composeRule.onNodeWithTag("btn_lights").getUnclippedBoundsInRoot()
+        val leftBounds = visualBounds("btn_left")
+        val downBounds = visualBounds("btn_down")
+        val lightsBounds = visualBounds("btn_lights")
 
         // Bottom-left corner cell: directly below Left, directly left of Down.
         assertTrue(lightsBounds.left <= leftBounds.left + 1.dp)
@@ -296,5 +335,94 @@ class ControlScreenTest {
         composeRule.onNodeWithTag("btn_lights").performTouchInput { down(center); up() }
         composeRule.waitForIdle()
         assertTrue(connection.sentCommands.none { it.startsWith("LIGHTS_") })
+    }
+
+    // --- Feature 008: horn button — position, tap-triggers-then-cools-down-on-a-timer, and
+    // three visually/behaviorally distinct states (Unavailable/Ready/Sounding). No ESP32 response
+    // is ever involved: the button re-enables itself purely on ControlViewModel's local timer.
+
+    @Test
+    fun hornButtonIsDisplayedBetweenRightAndDown() {
+        setContentWith(RecordingLogger(), connected = true)
+        composeRule.onNodeWithTag("btn_horn").assertIsDisplayed()
+
+        val rightBounds = visualBounds("btn_right")
+        val downBounds = visualBounds("btn_down")
+        val hornBounds = visualBounds("btn_horn")
+
+        // Bottom-right corner cell: directly below Right, directly right of Down.
+        assertTrue(hornBounds.right >= rightBounds.right - 1.dp)
+        assertTrue(hornBounds.top >= rightBounds.bottom - 1.dp)
+        assertTrue(hornBounds.top >= downBounds.top - 1.dp)
+        assertTrue(hornBounds.left >= downBounds.right - 1.dp)
+    }
+
+    @Test
+    fun hornButtonIsDisabledWhileNotConnected() {
+        setContentWithHorn(connected = false)
+        composeRule.onNodeWithTag("btn_horn").assertIsNotEnabled()
+    }
+
+    @Test
+    fun tappingHornWhileDisabledSendsNothing() {
+        val (connection, _) = setContentWithHorn(connected = false)
+        composeRule.onNodeWithTag("btn_horn").performTouchInput { down(center); up() }
+        composeRule.waitForIdle()
+        assertTrue(connection.sentCommands.none { it == "HORN\n" })
+    }
+
+    @Test
+    fun tappingHornSendsTriggerAndReEnablesOnItsOwnAfterTheCooldown() {
+        val (connection, _) = setContentWithHorn(connected = true)
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag("btn_horn").assertIsEnabled()
+
+        composeRule.onNodeWithTag("btn_horn").performTouchInput { down(center); up() }
+        composeRule.waitForIdle()
+
+        assertEquals(listOf("HORN\n"), connection.sentCommands)
+        composeRule.onNodeWithTag("btn_horn").assertIsNotEnabled()
+
+        // Re-enables purely on ControlViewModel's fixed local timer — no ESP32 response involved.
+        composeRule.waitUntil(timeoutMillis = 3_000) {
+            try {
+                composeRule.onNodeWithTag("btn_horn").assertIsEnabled()
+                true
+            } catch (e: AssertionError) {
+                false
+            }
+        }
+    }
+
+    @Test
+    fun hornButtonLooksDistinctInAllThreeStates() {
+        val connection = FakeEsp32Connection()
+        val viewModel = ControlViewModel(connection, RecordingLogger())
+        var connected by mutableStateOf(false)
+        composeRule.setContent {
+            ControlScreen(viewModel = viewModel, connected = connected)
+        }
+        composeRule.waitForIdle()
+        val node = composeRule.onNodeWithTag("btn_horn")
+
+        // Unavailable: disconnected, dimmed.
+        node.assertIsNotEnabled()
+        val unavailable = node.captureToImage().pixelSignature()
+
+        connected = true
+        composeRule.waitForIdle()
+
+        // Ready: connected, idle.
+        node.assertIsEnabled()
+        val ready = node.captureToImage().pixelSignature()
+        assertNotEquals(unavailable, ready)
+
+        // Sounding: connected, just triggered.
+        node.performTouchInput { down(center); up() }
+        composeRule.waitForIdle()
+        node.assertIsNotEnabled()
+        val sounding = node.captureToImage().pixelSignature()
+        assertNotEquals(ready, sounding)
+        assertNotEquals(unavailable, sounding)
     }
 }

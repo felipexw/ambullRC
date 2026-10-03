@@ -453,4 +453,139 @@ class ControlViewModelTest {
         assertTrue(connection.sentCommands.none { it == "LIGHTS_ON\n" || it == "LIGHTS_OFF\n" })
         assertEquals(true, viewModel.lightsOn.value)
     }
+
+    // --- Feature 008: horn trigger — a fixed local cooldown, never any ESP32 read-back ---
+
+    @Test
+    fun tapSendsHornAndFlipsPlayingThenAutomaticallyClearsAfterCooldownWithNoFakeResponse() =
+        runTest(dispatcher) {
+            val connection = FakeEsp32Connection().apply { connect() }
+            val viewModel = newViewModel(connection, RecordingLogger())
+            viewModel.setConnected(true)
+            runCurrent()
+
+            viewModel.onHornTapped()
+            runCurrent()
+
+            assertEquals(listOf("HORN\n"), connection.sentCommands)
+            assertEquals(true, viewModel.hornPlaying.value)
+            assertEquals(false, viewModel.hornAvailable.value)
+
+            // Advancing by less than the cooldown must not re-enable it yet.
+            advanceTimeBy(1_499)
+            runCurrent()
+            assertEquals(true, viewModel.hornPlaying.value)
+
+            // At exactly the cooldown, it clears on its own — no fake response was ever pushed.
+            advanceTimeBy(1)
+            runCurrent()
+            assertEquals(false, viewModel.hornPlaying.value)
+            assertEquals(true, viewModel.hornAvailable.value)
+        }
+
+    @Test
+    fun repeatTapsWithinTheCooldownSendOnlyOneHornTotal() = runTest(dispatcher) {
+        val connection = FakeEsp32Connection().apply { connect() }
+        val viewModel = newViewModel(connection, RecordingLogger())
+        viewModel.setConnected(true)
+        runCurrent()
+
+        viewModel.onHornTapped()
+        runCurrent()
+        viewModel.onHornTapped()
+        viewModel.onHornTapped()
+        viewModel.onHornTapped()
+        runCurrent()
+
+        assertEquals(listOf("HORN\n"), connection.sentCommands)
+
+        advanceTimeBy(1_500)
+        runCurrent()
+        viewModel.onHornTapped()
+        runCurrent()
+
+        assertEquals(listOf("HORN\n", "HORN\n"), connection.sentCommands)
+    }
+
+    @Test
+    fun tapWhileDisconnectedSendsNoHorn() = runTest(dispatcher) {
+        val connection = FakeEsp32Connection() // never connected
+        val viewModel = newViewModel(connection, RecordingLogger())
+
+        viewModel.onHornTapped()
+        runCurrent()
+
+        assertTrue(connection.sentCommands.isEmpty())
+        assertEquals(false, viewModel.hornPlaying.value)
+    }
+
+    @Test
+    fun disconnectingMidCooldownResetsImmediatelyAndReconnectIsNotLeftWaiting() = runTest(dispatcher) {
+        val connection = FakeEsp32Connection().apply { connect() }
+        val viewModel = newViewModel(connection, RecordingLogger())
+        viewModel.setConnected(true)
+        runCurrent()
+
+        viewModel.onHornTapped()
+        runCurrent()
+        assertEquals(true, viewModel.hornPlaying.value)
+
+        // Disconnect partway through the cooldown window.
+        advanceTimeBy(500)
+        viewModel.setConnected(false)
+        runCurrent()
+
+        assertEquals(false, viewModel.hornPlaying.value)
+        assertEquals(false, viewModel.hornAvailable.value)
+
+        // Reconnecting must not be left waiting out the original (now-cancelled) timer.
+        viewModel.setConnected(true)
+        runCurrent()
+        assertEquals(true, viewModel.hornAvailable.value)
+
+        // The old timer (had it fired) would have landed around t=1500; prove it's actually gone
+        // by confirming a fresh tap here behaves like a normal, unblocked press.
+        connection.sentCommands.clear()
+        viewModel.onHornTapped()
+        runCurrent()
+        assertEquals(listOf("HORN\n"), connection.sentCommands)
+    }
+
+    @Test
+    fun holdingADirectionAndTappingHornSendsBothWithoutInterruption() = runTest(dispatcher) {
+        val connection = FakeEsp32Connection().apply { connect() }
+        val viewModel = newViewModel(connection, RecordingLogger())
+        viewModel.setConnected(true)
+        runCurrent()
+
+        viewModel.onDirectionPressed(Direction.UP)
+        advanceTimeBy(250)
+        runCurrent()
+        viewModel.onHornTapped()
+        advanceTimeBy(250)
+        runCurrent()
+        viewModel.onDirectionReleased(Direction.UP)
+        advanceUntilIdle()
+
+        assertTrue(connection.sentCommands.contains("HORN\n"))
+        assertTrue(connection.sentCommands.count { it == "UP\n" } >= 4)
+    }
+
+    @Test
+    fun hornTapAppendsSentEntryToDebugLog() = runTest(dispatcher) {
+        val connection = FakeEsp32Connection().apply { connect() }
+        val debugLog = DebugLog()
+        val viewModel = newViewModel(connection, RecordingLogger(), debugLog)
+        viewModel.setConnected(true)
+        runCurrent()
+
+        viewModel.onHornTapped()
+        runCurrent()
+
+        assertTrue(
+            debugLog.entries.value.summaries().any {
+                it.first == LogCategory.SENT && it.second == LogLevel.INFO && it.third == "HORN -> sent"
+            }
+        )
+    }
 }

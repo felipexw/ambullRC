@@ -6,10 +6,13 @@ content plus Claude-specific notes. Human contributors: see [`README.md`](README
 ## Project
 
 AmbullRC — an Android app that is a **Bluetooth remote control for an ESP32** driving one servomotor
-(rear steering) and one DC motor (engine), plus a lights on/off accessory. Personal learning
-side-project, **not** production. Its only job is to send commands to the ESP32 — with one narrow
-exception: it may read a discrete accessory's own on/off state (e.g. lights) back from the ESP32 so
-the UI can show it (see the constitution's Hardware & Communication Scope section, v2.1.0).
+(rear steering) and one DC motor (engine), plus a lights on/off accessory and a horn/siren sound
+effect (played entirely by the ESP32 itself, triggered one-way with no read-back). Personal
+learning side-project, **not** production. Its only job is to send commands to the ESP32 — with one
+narrow exception: it may read a discrete accessory's own confirmed on/off state (e.g. lights) back
+from the ESP32 so the UI can show it — not every accessory needs this; the horn instead tracks its
+own status locally with a fixed timeout (see the constitution's Hardware & Communication Scope
+section, v2.3.1).
 
 ## Rules to follow (from the constitution, `.specify/memory/constitution.md`)
 
@@ -81,5 +84,9 @@ stop the motor itself once the stream goes quiet. See the "Post-ship change" not
 `specs/003-send-direction-commands/tasks.md`. Validated on real hardware on 2026-07-30: the ESP32
 does stop the motor once the stream goes quiet, and release-while-held stops the motor as
 expected.
+
+**2026-10-03 diamond D-pad**: the four arrows in `ui/ControlScreen.kt` are now a 2x2 group of
+same-size squares rotated 45°, meeting around a tiny center instead of the cross's empty
+button-sized center cell, so the thumb can slide between directions.
 
 No further work is currently planned.

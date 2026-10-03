@@ -1,34 +1,44 @@
 <!--
 Sync Impact Report
 ==================
-Version change: 2.0.0 → 2.1.0
-Modified principles: none (no principle redefined in a backward-incompatible
-  way)
-Added sections/content:
-  - Hardware & Communication Scope: actuator list expanded from "exactly two
-    actuators" (servo + DC motor) to include a lights on/off accessory as a
-    third supported actuator, plus a documented "simple discrete accessory"
-    pattern so a future single accessory (e.g. a speaker, not built yet) can
-    be added later via a small amendment instead of re-litigating scope.
-  - Hardware & Communication Scope: narrow exception added to the one-way-
-    remote rule, permitting the app to read back an accessory's own on/off
-    state (e.g. lights) while steering/throttle commands remain strictly
-    one-way (no telemetry read-back for drive actuators).
-Removed sections: none
+Version change: 2.3.0 → 2.3.1
+Correction: v2.3.0 described the horn accessory as reporting a completion
+  signal back to the app ("reports back that it finished," "the horn's
+  trigger/completion signal," "the horn's playing/finished signal"). A
+  /speckit-analyze pass on the horn feature (008) found this no longer
+  matched reality: a /speckit-clarify session on that feature (before any
+  of it was built) had already decided the app must NOT wait for or read
+  back any ESP32 signal for the horn at all — it re-enables the control on
+  a fixed local timeout instead. The feature was specified, planned, and
+  implemented that way; only this document still described the old,
+  abandoned two-way shape. This is a wording/description fix to match a
+  decision already made and shipped, not a new decision — treated as PATCH.
+Modified principles: none (no principle text changed; only the Hardware &
+  Communication Scope section's accessory description).
+Added sections/content: none.
+Removed sections:
+  - Hardware & Communication Scope: removed the horn's ESP32-reported
+    "completion signal"/"reports back that it finished" language and the
+    horn's inclusion in the one-way-remote exception (it never used that
+    exception in practice).
+Modified sections/content:
+  - Hardware & Communication Scope: the horn is now described as a
+    momentary, one-way trigger only — the app tracks its own re-enable
+    timing locally (e.g. a fixed timeout) and does not read back anything
+    from the ESP32 about it. Lights keep their existing on/off read-back
+    exception unchanged (that one is real and still used). The "additional
+    accessories" bullet is reworded so a future momentary trigger is not
+    presumed to need a completion signal either — it MAY have one, or not,
+    per that feature's own design.
 Templates requiring updates:
-  - .specify/templates/plan-template.md ✅ no changes required (Constitution
-    Check gate is generic/data-driven; will pull updated scope from this
-    file at plan time)
-  - .specify/templates/spec-template.md ✅ no changes required (project-agnostic)
-  - .specify/templates/tasks-template.md ✅ no changes required (no
-    actuator/one-way references)
+  - .specify/templates/plan-template.md ✅ no changes required
+  - .specify/templates/spec-template.md ✅ no changes required
+  - .specify/templates/tasks-template.md ✅ no changes required
   - .claude/skills/speckit-*/SKILL.md ✅ reviewed, no stale references found
-  - CLAUDE.md ✅ updated project-summary line to mention the lights accessory
-  - AGENTS.md ✅ updated project-summary line to mention the lights accessory
-Follow-up TODOs: none. The speaker accessory itself is explicitly NOT being
-  added now — only the documentation pattern that will let it be added later
-  without a scope debate, per Principle I (YAGNI): no code or abstraction for
-  it exists yet.
+  - CLAUDE.md ✅ updated (horn described without a completion signal)
+  - AGENTS.md ✅ updated (horn described without a completion signal)
+Follow-up TODOs: none. Feature 008's own spec/plan/tasks/code already match
+  this corrected description; only this document was stale.
 -->
 
 # AmbullRC Constitution
@@ -106,21 +116,32 @@ state still needs unit coverage.
 
 - The ESP32 peer controls two drive actuators — one servomotor (rear-wheel
   steering) and one DC motor (drive/engine) — plus a small, explicitly
-  enumerated set of simple discrete accessories that are switched, not
-  driven: currently just the lights (on/off). The app's command surface MUST
+  enumerated set of simple discrete accessories that are switched or
+  triggered, not driven: currently the lights (on/off) and a horn/siren
+  sound effect (a momentary, one-way trigger — the ESP32 plays it for a
+  duration of its own choosing; the app does not wait for or read back any
+  confirmation of when it finishes, tracking its own re-enable timing
+  locally instead, e.g. a fixed timeout). The app's command surface MUST
   map directly to this enumerated list — steering position/angle,
-  throttle/speed (plus stop/neutral), and each accessory's on/off state —
-  and MUST NOT be generalized into an arbitrary multi-channel or
-  plugin-style command system that accepts channels/accessories not
-  explicitly listed here.
-- Additional simple discrete accessories (each a single on/off switch, no
-  variable range) MAY be added later by amending this list — e.g. a speaker
-  is anticipated but intentionally NOT implemented yet, per Principle I
-  (YAGNI): no code, abstraction, or protocol support for it exists until a
-  feature concretely requires it and this section is amended to name it.
-  This bullet documents the pattern so adding one more such accessory is a
-  small, expected amendment rather than a re-litigation of scope; it is not
-  a blanket allowance for arbitrary or unlisted accessories.
+  throttle/speed (plus stop/neutral), each accessory's on/off state, and
+  the horn's one-way trigger — and MUST NOT be generalized into an
+  arbitrary multi-channel or plugin-style command system that accepts
+  channels/accessories not explicitly listed here. The horn's audio itself
+  is produced and played entirely by the ESP32; no audio data of any kind
+  travels between phone and ESP32, and no Bluetooth profile beyond the
+  existing command channel is used.
+- Additional simple discrete accessories (each either a single on/off
+  switch or a momentary one-way trigger, no variable range) MAY be added
+  later by amending this list — e.g. a speaker is anticipated but
+  intentionally NOT implemented beyond the horn, per Principle I (YAGNI):
+  no code, abstraction, or protocol support for a further accessory exists
+  until a feature concretely requires it and this section is amended to
+  name it. Whether such a trigger needs any read-back at all (a completion
+  signal, or none, like the horn) is a decision for that feature's own
+  spec, not assumed here. This bullet documents the pattern so adding one
+  more such accessory is a small, expected amendment rather than a
+  re-litigation of scope; it is not a blanket allowance for arbitrary or
+  unlisted accessories.
 - Communication is over Bluetooth. The command protocol (message format,
   framing, whether Classic SPP or BLE is used) is a technical decision made
   in the implementation plan for the relevant feature, not fixed here — but
@@ -130,11 +151,14 @@ state still needs unit coverage.
   ESP32 is the primary path, and the two drive actuators (steering,
   throttle) remain strictly one-way — the app MUST NOT read their state back.
   The one narrow exception is that the app MAY read back a listed discrete
-  accessory's own on/off state (e.g. lights) over Bluetooth, so the UI can
-  display what the ESP32 actually confirms rather than the app's own guess.
-  Reading back anything else (drive-actuator telemetry, sensor data,
-  diagnostics) remains out of scope unless a future feature explicitly
-  requires it and amends this section accordingly.
+  accessory's own confirmed on/off state (e.g. lights) over Bluetooth, so
+  the UI can display what the ESP32 actually confirms rather than the
+  app's own guess — not every accessory needs this: a momentary one-way
+  trigger like the horn instead tracks its own status locally (e.g. a
+  fixed timeout) with no read-back from the ESP32 at all. Reading back
+  anything else (drive-actuator telemetry, sensor data, diagnostics)
+  remains out of scope unless a future feature explicitly requires it and
+  amends this section accordingly.
 
 ## Development Workflow & Quality Gates
 
@@ -174,4 +198,4 @@ update the version number below per semantic versioning:
 approach honors Principles I–V above. Any deviation MUST be recorded and
 justified in that feature's plan.md Complexity Tracking table.
 
-**Version**: 2.1.0 | **Ratified**: 2026-07-17 | **Last Amended**: 2026-09-11
+**Version**: 2.3.1 | **Ratified**: 2026-07-17 | **Last Amended**: 2026-09-15

@@ -18,6 +18,9 @@ import kotlinx.coroutines.withContext
 /** How often each held direction is resent while its button stays pressed. */
 private const val REPEAT_INTERVAL_MS = 100L
 
+/** How long the horn control stays disabled after a successfully sent trigger (feature 008). */
+private const val HORN_COOLDOWN_MS = 1500L
+
 /**
  * Holds the press-handling logic for the control screen. The View forwards each button's press
  * and release here. There is no "stop" command: the ESP32 is expected to stop the motor itself
@@ -48,12 +51,23 @@ private const val REPEAT_INTERVAL_MS = 100L
  * confirmed-only: it only changes when [connection]'s [Esp32Connection.lightState] reports a value
  * (whatever the ESP32 chooses to send, unprompted), never as a direct effect of the tap itself.
  * [lightsEnabled] simply tracks [setConnected], same as the directional buttons' `connected` gate.
+ *
+ * Also owns the horn trigger (feature 008): a tap ([onHornTapped]) sends a single one-way `"HORN\n"`
+ * command — the ESP32 owns the actual sound entirely, and the app never reads anything back about
+ * it. [hornPlaying] is a purely local timer: it flips true the instant a trigger is successfully
+ * sent and flips back to false [hornCooldownMillis] later, with no dependency on any ESP32
+ * response. [hornAvailable] mirrors [setConnected] combined with [hornPlaying], so a tap is a
+ * no-op while disconnected or still within the cooldown window.
+ *
+ * @param hornCooldownMillis how long [hornPlaying] stays true after a successful trigger
+ *   (injected for test determinism; see [HORN_COOLDOWN_MS]).
  */
 class ControlViewModel(
     private val connection: Esp32Connection,
     private val logger: DirectionLogger = AndroidDirectionLogger(),
     private val debugLog: DebugLog = DebugLog(),
-    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO
+    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
+    private val hornCooldownMillis: Long = HORN_COOLDOWN_MS
 ) : ViewModel() {
     private val pressedDirections = mutableSetOf<Direction>()
     private val repeatJobs = mutableMapOf<Direction, Job>()
@@ -70,6 +84,21 @@ class ControlViewModel(
     /** Whether the lights control currently accepts taps: mirrors [setConnected], same as the
      *  directional buttons' `connected` gate — the app never queries the ESP32 to decide this. */
     val lightsEnabled: StateFlow<Boolean> = _lightsEnabled.asStateFlow()
+
+    private var connected = false
+    private var hornResetJob: Job? = null
+
+    private val _hornPlaying = MutableStateFlow(false)
+
+    /** True for [hornCooldownMillis] after a successfully sent `"HORN\n"` trigger; false
+     *  otherwise. Driven entirely by a local timer — never by any signal from the ESP32. */
+    val hornPlaying: StateFlow<Boolean> = _hornPlaying.asStateFlow()
+
+    private val _hornAvailable = MutableStateFlow(false)
+
+    /** Whether the horn control currently accepts taps: true only while connected AND
+     *  [hornPlaying] is false. */
+    val hornAvailable: StateFlow<Boolean> = _hornAvailable.asStateFlow()
 
     init {
         // Long-lived for the ViewModel's lifetime: whenever the ESP32 reports its lights state
@@ -90,9 +119,18 @@ class ControlViewModel(
 
     /** Called by the Activity whenever the connected/disconnected boolean it already computes for
      *  ControlScreen changes. Simply gates whether taps are accepted — the app sends no signal of
-     *  its own when this changes, and [lightsOn] is left untouched either way. */
+     *  its own when this changes, and [lightsOn] is left untouched either way. Also gates the horn:
+     *  going disconnected immediately cancels any pending cooldown and resets [hornPlaying] to
+     *  false, so a later reconnect always starts fully available rather than waiting out a stale
+     *  timer from before the drop. */
     fun setConnected(connected: Boolean) {
         _lightsEnabled.value = connected
+        this.connected = connected
+        if (!connected) {
+            hornResetJob?.cancel()
+            _hornPlaying.value = false
+        }
+        recomputeHornAvailable()
     }
 
     /** Sends exactly one toggle command — the opposite of [lightsOn]'s current value — unless the
@@ -121,6 +159,34 @@ class ControlViewModel(
                 )
             }
         }
+    }
+
+    /** Sends exactly one `"HORN\n"` trigger over [connection], unless [hornAvailable] is false
+     *  (not connected, or still within the cooldown window). On a successful send, starts (or
+     *  restarts) the [hornCooldownMillis] timer that flips [hornPlaying] back to false — no ESP32
+     *  response of any kind is awaited or parsed. */
+    fun onHornTapped() {
+        if (!_hornAvailable.value) return
+        viewModelScope.launch {
+            val sent = withContext(ioDispatcher) { connection.send("HORN\n") }
+            if (sent) {
+                debugLog.add(LogCategory.SENT, LogLevel.INFO, "HORN -> sent")
+                _hornPlaying.value = true
+                recomputeHornAvailable()
+                hornResetJob?.cancel()
+                hornResetJob = viewModelScope.launch {
+                    delay(hornCooldownMillis)
+                    _hornPlaying.value = false
+                    recomputeHornAvailable()
+                }
+            } else {
+                debugLog.add(LogCategory.SENT, LogLevel.WARN, "HORN -> dropped (not connected)")
+            }
+        }
+    }
+
+    private fun recomputeHornAvailable() {
+        _hornAvailable.value = connected && !_hornPlaying.value
     }
 
     /** Starts sending [direction]'s command, unless its opposite is already held. */

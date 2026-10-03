@@ -6,15 +6,17 @@ Guidance for Claude Code (and other AI agents) working in this repository. See a
 ## What this project is
 
 AmbullRC is an Android **Bluetooth remote control for an ESP32** that drives one servomotor (rear
-steering) and one DC motor (engine), plus a lights on/off accessory. It is a personal **learning
-side-project**, not production. Its single purpose is to send commands (signals) to the ESP32 —
-with one narrow exception: the app may read a discrete accessory's own on/off state (e.g. lights)
-back from the ESP32 so the UI can show it (see the constitution's Hardware & Communication Scope
-section, v2.1.0).
+steering) and one DC motor (engine), plus a lights on/off accessory and a horn/siren sound effect
+(played entirely by the ESP32 itself, triggered one-way with no read-back). It is a personal
+**learning side-project**, not production. Its single purpose is to send commands (signals) to the
+ESP32 — with one narrow exception: the app may read a discrete accessory's own confirmed on/off
+state (e.g. lights) back from the ESP32 so the UI can show it — not every accessory needs this; the
+horn instead tracks its own status locally with a fixed timeout (see the constitution's Hardware &
+Communication Scope section, v2.3.1).
 
 ## Non-negotiable principles
 
-These come from `.specify/memory/constitution.md` (v2.0.0). Read it before non-trivial changes.
+These come from `.specify/memory/constitution.md` (v2.3.1). Read it before non-trivial changes.
 
 1. **Simplicity & YAGNI (NON-NEGOTIABLE)** — build the simplest thing that works. No speculative
    abstractions, no features that aren't asked for.
@@ -118,4 +120,10 @@ export JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home"
   `specs/003-send-direction-commands/tasks.md` for details. Validated on real hardware on
   2026-07-30: the ESP32 does stop the motor once the stream goes quiet, and release-while-held
   stops the motor as expected.
+- **2026-10-03 diamond D-pad** (ad hoc UX tweak, no spec): the four arrows in
+  `ui/ControlScreen.kt` are no longer a 3x3 cross with an empty button-sized center — they are a
+  2x2 group of same-size squares rotated 45° (`graphicsLayer { rotationZ }`, icons counter-rotated)
+  so all four meet around a tiny `DiamondGap` center, letting the thumb slide between directions.
+  Lights/Horn stay in the bottom corners, sized to clear the diamond. Instrumented tests use a
+  rotation-aware `visualBounds` helper, since `getUnclippedBoundsInRoot` ignores the rotation.
 - Next planned work: none currently planned.
