@@ -1,8 +1,8 @@
 # Implementation Plan: Horn Sound Command (Played by the ESP32)
 
-**Branch**: `008-a2dp-audio-streaming` | **Date**: 2026-09-15 | **Spec**: [spec.md](./spec.md)
+**Branch**: `008-horn-sound-command` | **Date**: 2026-09-15 | **Spec**: [spec.md](./spec.md)
 
-**Input**: Feature specification from `/specs/008-a2dp-audio-streaming/spec.md`
+**Input**: Feature specification from `/specs/008-horn-sound-command/spec.md`
 
 ## Summary
 
@@ -83,7 +83,7 @@ two new `Esp32Connection` properties and reader-loop changes).
 ### Documentation (this feature)
 
 ```text
-specs/008-a2dp-audio-streaming/
+specs/008-horn-sound-command/
 ├── plan.md              # This file
 ├── spec.md              # Feature specification
 ├── research.md          # Phase 0 output

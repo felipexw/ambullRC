@@ -1,6 +1,6 @@
 # Feature Specification: Horn Sound Command (Played by the ESP32)
 
-**Feature Branch**: `008-a2dp-audio-streaming`
+**Feature Branch**: `008-horn-sound-command`
 
 **Created**: 2026-09-15
 

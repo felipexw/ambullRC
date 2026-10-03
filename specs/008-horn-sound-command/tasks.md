@@ -4,7 +4,7 @@ description: "Task list for Horn Sound Command (Played by the ESP32)"
 
 # Tasks: Horn Sound Command (Played by the ESP32)
 
-**Input**: Design documents from `/specs/008-a2dp-audio-streaming/`
+**Input**: Design documents from `/specs/008-horn-sound-command/`
 
 **Prerequisites**: plan.md (required), spec.md (required), research.md, data-model.md,
 contracts/horn-contract.md, quickstart.md
